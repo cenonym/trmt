@@ -41,6 +41,7 @@ pub struct DisplayConfig {
     #[serde(default = "default_cell_char")]
     pub cell_char: String,
     
+    // Cached character data
     #[serde(skip)]
     pub head_char_data: Vec<CharData>,
     #[serde(skip)]
@@ -88,7 +89,7 @@ pub struct ControlsConfig {
 }
 
 // Default config
-fn default_heads() -> usize { 5 }
+fn default_heads() -> usize { 4 }
 fn default_rule() -> String { "RL".to_string() }
 fn default_speed() -> f64 { 100.0 }
 fn default_trail_length() -> usize { 20 }
@@ -307,6 +308,53 @@ impl Config {
             return Err("rule string cannot be empty".to_string());
         }
 
+        // Handle explicit state rules (contains commas)
+        if rule.contains(',') {
+            let combinations: Vec<&str> = rule.split(',').collect();
+            for combo in combinations {
+                if combo.is_empty() {
+                    return Err("rule combination cannot be empty".to_string());
+                }
+                
+                if let Some(colon_pos) = combo.find(':') {
+                    let full_action = &combo[..colon_pos];
+                    let state_part = &combo[colon_pos + 1..];
+                    
+                    // Split state prefix from action (e.g., "0D" -> "D")
+                    let action = if full_action.len() > 1 && full_action.chars().next().unwrap().is_ascii_digit() {
+                        &full_action[1..]
+                    } else {
+                        full_action
+                    };
+                    
+                    // Validate action part
+                    self.validate_direction_string(action)?;
+                    
+                    // Validate state number
+                    if !state_part.chars().all(|c| c.is_ascii_digit()) {
+                        return Err(format!("invalid state number '{}' in '{}'", state_part, combo));
+                    }
+                } else {
+                    self.validate_direction_string(combo)?;
+                }
+            }
+            return Ok(());
+        }
+
+        // Split by colon for multi-state rules
+        let state_rules: Vec<&str> = rule.split(':').collect();
+        
+        for state_rule in state_rules {
+            if state_rule.is_empty() {
+                return Err("state rule cannot be empty".to_string());
+            }
+            self.validate_direction_string(state_rule)?;
+        }
+
+        Ok(())
+    }
+
+    fn validate_direction_string(&self, rule: &str) -> Result<(), String> {
         let mut i = 0;
         while i < rule.len() {
             let remaining = &rule[i..];
@@ -316,14 +364,13 @@ impl Config {
                 i += 2;
             } else if let Some(c) = remaining.chars().next() {
                 match c {
-                    'L' | 'R' | 'N' | 'S' | 'E' | 'W' => i += 1,
-                    _ => return Err(format!("invalid character '{}' at position {}", c, i)),
+                    'L' | 'R' | 'U' | 'D' | 'N' | 'S' | 'E' | 'W' | '0'..='9' => i += 1,
+                    _ => return Err(format!("invalid character '{}' in rule '{}'", c, rule)),
                 }
             } else {
                 break;
             }
         }
-
         Ok(())
     }
 
@@ -384,7 +431,7 @@ impl Config {
     pub fn toggle_seed(&mut self, current_seed: &str) -> Result<(), Box<dyn Error>> {
         let config_path = Self::config_dir().join("config.toml");
         
-        // Update seed
+        // Update seed in config
         if let Some(config_seed) = &self.simulation.seed {
             if config_seed == current_seed {
                 self.simulation.seed = Some(String::new()); // Clear seed
@@ -429,7 +476,7 @@ impl Config {
             }
         }
 
-        // Pasre 256-colors
+        // Parse 256-colors
         if let Ok(index) = color_str.parse::<u8>() {
             return Color::Indexed(index);
         }

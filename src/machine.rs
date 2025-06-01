@@ -59,6 +59,20 @@ impl Direction {
             Direction::DownLeft => Direction::UpLeft,
         }
     }
+
+    #[inline]
+    pub fn u_turn(self) -> Self {
+        match self {
+            Direction::Up => Direction::Down,
+            Direction::Down => Direction::Up,
+            Direction::Left => Direction::Right,
+            Direction::Right => Direction::Left,
+            Direction::UpLeft => Direction::DownRight,
+            Direction::UpRight => Direction::DownLeft,
+            Direction::DownLeft => Direction::UpRight,
+            Direction::DownRight => Direction::UpLeft,
+        }
+    }
 }
 
 #[derive(Debug, Clone)]
@@ -66,6 +80,7 @@ pub struct Head {
     pub x: i32,
     pub y: i32,
     pub direction: Direction,
+    pub internal_state: usize,
     pub color: Color,
     pub trail: VecDeque<(i32, i32)>,
 }
@@ -76,6 +91,7 @@ impl Head {
             x,
             y,
             direction: Direction::Up,
+            internal_state: 0,
             color,
             trail: VecDeque::with_capacity(20),
         }
@@ -92,20 +108,48 @@ impl Head {
     }
 }
 
+#[derive(Debug, Clone)]
+pub struct StateTransition {
+    pub new_cell_state: char,
+    pub turn_direction: TurnDirection,
+    pub new_internal_state: usize,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub enum TurnDirection {
+    None,                    // D
+    Right,                   // R
+    UTurn,                   // U
+    Left,                    // L
+    Absolute(Direction),     // N/S/E/W/NW/NE/SW/SE
+}
+
+impl TurnDirection {
+    pub fn apply(&self, current_direction: Direction) -> Direction {
+        match self {
+            TurnDirection::None => current_direction,
+            TurnDirection::Right => current_direction.turn_right(),
+            TurnDirection::UTurn => current_direction.u_turn(),
+            TurnDirection::Left => current_direction.turn_left(),
+            TurnDirection::Absolute(dir) => *dir,
+        }
+    }
+}
+
 #[derive(Debug)]
 pub struct TuringMachine {
     pub tape: FxHashMap<(i32, i32), char>,
     pub tape_colors: FxHashMap<(i32, i32), Color>,
     pub heads: Vec<Head>,
     pub rule_string: String,
-    pub rules: BTreeMap<char, (char, Direction)>,
+    pub rules: BTreeMap<(usize, char), StateTransition>, // (internal_state, cell_state) -> transition
     pub num_heads: usize,
     pub running: bool,
     pub steps: u64,
     pub current_seed: String,
     colors: Vec<Color>,
     cached_parsed_colors: FxHashMap<String, Color>,
-    updates_buffer: Vec<(usize, char, Direction, i32, i32)>,
+    updates_buffer: Vec<(usize, char, TurnDirection, usize, i32, i32)>, // head_idx, new_cell, turn, new_state, x, y
     batch_updates: Vec<((i32, i32), char, Color)>,
     pub dirty_cells: FxHashSet<(i32, i32)>,
 }
@@ -159,7 +203,6 @@ impl TuringMachine {
         self.heads.clear();
         self.heads.reserve(self.num_heads);
         
-        // Generate or use provided seed
         let seed = if let Some(config_seed) = &config.simulation.seed {
             if !config_seed.is_empty() {
                 config_seed.clone()
@@ -171,8 +214,6 @@ impl TuringMachine {
         };
         
         self.current_seed = seed.clone();
-        
-        // Create RNG from seed
         let seed_hash = self.hash_seed(&seed);
         let mut rng = StdRng::seed_from_u64(seed_hash);
 
@@ -222,39 +263,190 @@ impl TuringMachine {
     pub fn parse_rules(&mut self, rule_string: &str) {
         self.rules.clear();
         
-        let states = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K', 'L', 'M', 'N', 'O', 'P', 'Q', 'R', 'S', 'T', 'U', 'V', 'W', 'X', 'Y', 'Z'];
-        let mut state_index = 0;
-        let mut i = 0;
+        if rule_string.contains(',') {
+            self.parse_explicit_state_rules(rule_string);
+        } else if rule_string.contains(':') {
+            self.parse_multi_state_rules(rule_string);
+        } else {
+            self.parse_single_state_rules(rule_string);
+        }
+    }
+
+    fn parse_explicit_state_rules(&mut self, rule_string: &str) {
+        let combinations: Vec<&str> = rule_string.split(',').collect();
+        let states = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H'];
         
-        while i < rule_string.len() && state_index < states.len() {
-            let remaining = &rule_string[i..];
-            
-            if remaining.starts_with("NW") {
-                self.rules.insert(states[state_index], ('N', Direction::UpLeft));
-                i += 2;
-            } else if remaining.starts_with("NE") {
-                self.rules.insert(states[state_index], ('N', Direction::UpRight));
-                i += 2;
-            } else if remaining.starts_with("SW") {
-                self.rules.insert(states[state_index], ('S', Direction::DownLeft));
-                i += 2;
-            } else if remaining.starts_with("SE") {
-                self.rules.insert(states[state_index], ('S', Direction::DownRight));
-                i += 2;
-            } else if let Some(c) = remaining.chars().next() {
-                let direction = match c {
-                    'L' => Direction::Left,
-                    'R' => Direction::Right,
-                    'N' => Direction::Up,
-                    'S' => Direction::Down,
-                    'E' => Direction::Right,
-                    'W' => Direction::Left,
-                    _ => Direction::Right,
+        for (idx, combo) in combinations.iter().enumerate() {
+            if let Some(colon_pos) = combo.find(':') {
+                let action_part = &combo[..colon_pos];
+                let next_state_part = &combo[colon_pos + 1..];
+                
+                // Extract state, action, and cell (e.g., "0D1" -> state=0, action="D", cell_to_write=1)
+                let state_idx = action_part.chars().next()
+                    .and_then(|c| c.to_digit(10))
+                    .map(|d| d as usize)
+                    .unwrap_or(0);
+                
+                let action_chars: Vec<char> = action_part[1..].chars().collect();
+                let action = if action_chars.len() > 1 && action_chars.last().unwrap().is_ascii_digit() {
+                    &action_part[1..action_part.len()-1] // Remove state prefix and cell suffix
+                } else {
+                    &action_part[1..] // Just remove state prefix
                 };
-                self.rules.insert(states[state_index], (c, direction));
-                i += 1;
+                
+                let cell_to_write_idx = if action_chars.len() > 1 && action_chars.last().unwrap().is_ascii_digit() {
+                    action_chars.last().unwrap().to_digit(10).map(|d| d as usize).unwrap_or(0)
+                } else {
+                    (idx % 2 + 1) % 2 // Default: flip current cell
+                };
+                
+                // Map index to (state, cell) combinations
+                let cell_idx = idx % 2;
+                let cell = states[cell_idx];
+                
+                let (turn_direction, _) = self.parse_direction(action);
+                let next_state = next_state_part.chars().next()
+                    .and_then(|c| c.to_digit(10))
+                    .map(|d| d as usize)
+                    .unwrap_or(state_idx);
+                
+                let next_cell = states[cell_to_write_idx];
+                
+                self.rules.insert((state_idx, cell), StateTransition {
+                    new_cell_state: next_cell,
+                    turn_direction,
+                    new_internal_state: next_state,
+                });
             }
-            state_index += 1;
+        }
+    }
+
+    fn parse_direction(&self, dir_str: &str) -> (TurnDirection, usize) {
+        if dir_str.starts_with("NW") {
+            (TurnDirection::Absolute(Direction::UpLeft), 2)
+        } else if dir_str.starts_with("NE") {
+            (TurnDirection::Absolute(Direction::UpRight), 2)
+        } else if dir_str.starts_with("SW") {
+            (TurnDirection::Absolute(Direction::DownLeft), 2)
+        } else if dir_str.starts_with("SE") {
+            (TurnDirection::Absolute(Direction::DownRight), 2)
+        } else if let Some(c) = dir_str.chars().next() {
+            let turn = match c {
+                'L' => TurnDirection::Left,
+                'R' => TurnDirection::Right,
+                'U' => TurnDirection::UTurn,
+                'D' => TurnDirection::None,
+                'N' => TurnDirection::Absolute(Direction::Up),
+                'S' => TurnDirection::Absolute(Direction::Down),
+                'E' => TurnDirection::Absolute(Direction::Right),
+                'W' => TurnDirection::Absolute(Direction::Left),
+                _ => TurnDirection::Right,
+            };
+            (turn, 1)
+        } else {
+            (TurnDirection::Right, 1)
+        }
+    }
+
+    fn parse_multi_state_rules(&mut self, rule_string: &str) {
+        let state_rules: Vec<&str> = rule_string.split(':').collect();
+        
+        for (state_idx, state_rule) in state_rules.iter().enumerate() {
+            self.parse_state_rule(state_idx, state_rule, state_rules.len());
+        }
+    }
+
+    fn parse_single_state_rules(&mut self, rule_string: &str) {
+        self.parse_legacy_rules(rule_string);
+    }
+
+    fn parse_legacy_rules(&mut self, rule_string: &str) {
+        let states = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K', 'L', 'M', 'N', 'O', 'P', 'Q', 'R', 'S', 'T', 'U', 'V', 'W', 'X', 'Y', 'Z'];
+        
+        // Generate rules for all possible cell states A-Z, cycling through the rule string
+        for state_index in 0..states.len() {
+            let rule_char_index = state_index % rule_string.len();
+            let rule_chars: Vec<char> = rule_string.chars().collect();
+            let c = rule_chars[rule_char_index];
+            
+            let remaining = &rule_string[rule_char_index..];
+            
+            let turn_direction = if remaining.starts_with("NW") {
+                TurnDirection::Absolute(Direction::UpLeft)
+            } else if remaining.starts_with("NE") {
+                TurnDirection::Absolute(Direction::UpRight)
+            } else if remaining.starts_with("SW") {
+                TurnDirection::Absolute(Direction::DownLeft)
+            } else if remaining.starts_with("SE") {
+                TurnDirection::Absolute(Direction::DownRight)
+            } else {
+                match c {
+                    'L' => TurnDirection::Left,
+                    'R' => TurnDirection::Right,
+                    'U' => TurnDirection::UTurn,
+                    'D' => TurnDirection::None,
+                    'N' => TurnDirection::Absolute(Direction::Up),
+                    'S' => TurnDirection::Absolute(Direction::Down),
+                    'E' => TurnDirection::Absolute(Direction::Right),
+                    'W' => TurnDirection::Absolute(Direction::Left),
+                    _ => TurnDirection::Right,
+                }
+            };
+            
+            self.rules.insert((0, states[state_index]), StateTransition {
+                new_cell_state: states[(state_index + 1) % rule_string.len()],
+                turn_direction,
+                new_internal_state: 0,
+            });
+        }
+    }
+
+    fn parse_state_rule(&mut self, state_idx: usize, rule: &str, total_states: usize) {
+        let states = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K', 'L', 'M', 'N', 'O', 'P', 'Q', 'R', 'S', 'T', 'U', 'V', 'W', 'X', 'Y', 'Z'];
+        let mut i = 0;
+        let mut cell_state_idx = 0;
+        
+        while i < rule.len() && cell_state_idx < states.len() {
+            let remaining = &rule[i..];
+            let current_cell = states[cell_state_idx];
+            let next_cell = states[(cell_state_idx + 1) % rule.len()];
+            
+            // Parse direction/turn
+            let (turn_direction, chars_consumed, next_state) = if remaining.starts_with("NW") {
+                (TurnDirection::Absolute(Direction::UpLeft), 2, state_idx)
+            } else if remaining.starts_with("NE") {
+                (TurnDirection::Absolute(Direction::UpRight), 2, state_idx)
+            } else if remaining.starts_with("SW") {
+                (TurnDirection::Absolute(Direction::DownLeft), 2, state_idx)
+            } else if remaining.starts_with("SE") {
+                (TurnDirection::Absolute(Direction::DownRight), 2, state_idx)
+            } else if let Some(c) = remaining.chars().next() {
+                match c {
+                    'L' => (TurnDirection::Left, 1, state_idx),
+                    'R' => (TurnDirection::Right, 1, state_idx),
+                    'U' => (TurnDirection::UTurn, 1, state_idx),
+                    'D' => (TurnDirection::None, 1, state_idx),
+                    'N' => (TurnDirection::Absolute(Direction::Up), 1, state_idx),
+                    'S' => (TurnDirection::Absolute(Direction::Down), 1, state_idx),
+                    'E' => (TurnDirection::Absolute(Direction::Right), 1, state_idx),
+                    'W' => (TurnDirection::Absolute(Direction::Left), 1, state_idx),
+                    _ => (TurnDirection::Right, 1, state_idx),
+                }
+            } else {
+                break;
+            };
+            
+            // For single-state rules, always stay in state 0
+            let next_internal_state = 0;
+            
+            self.rules.insert((state_idx, current_cell), StateTransition {
+                new_cell_state: next_cell,
+                turn_direction,
+                new_internal_state: next_internal_state,
+            });
+            
+            i += chars_consumed;
+            cell_state_idx += 1;
         }
     }
 
@@ -280,7 +472,6 @@ impl TuringMachine {
     pub fn mark_trail_dirty(&mut self) {
         for head in &self.heads {
             self.dirty_cells.insert((head.x, head.y));
-            
             for &(trail_x, trail_y) in &head.trail {
                 self.dirty_cells.insert((trail_x, trail_y));
             }
@@ -302,34 +493,34 @@ impl TuringMachine {
         self.batch_updates.reserve(self.heads.len());
 
         for (i, head) in self.heads.iter().enumerate() {
-            let current_state = self.get_cell(head.x, head.y);
+            let current_cell = self.get_cell(head.x, head.y);
             
-            if let Some(&(turn_char, stored_direction)) = self.rules.get(&current_state) {
-                let new_direction = match turn_char {
-                    'L' => head.direction.turn_left(),
-                    'R' => head.direction.turn_right(),
-                    _ => stored_direction,
-                };
-                
-                let states: Vec<char> = self.rules.keys().copied().collect();
-                let current_idx = states.iter().position(|&s| s == current_state).unwrap_or(0);
-                let next_state = states.get((current_idx + 1) % states.len()).copied().unwrap_or('A');
-                
+            if let Some(transition) = self.rules.get(&(head.internal_state, current_cell)) {
+                let new_direction = transition.turn_direction.apply(head.direction);
                 let (new_x, new_y) = new_direction.apply(head.x, head.y);
                 let wrapped_x = ((new_x % width) + width) % width;
                 let wrapped_y = ((new_y % height) + height) % height;
                 
-                self.updates_buffer.push((i, next_state, new_direction, wrapped_x, wrapped_y));
-                self.batch_updates.push(((head.x, head.y), next_state, head.color));
+                self.updates_buffer.push((
+                    i,
+                    transition.new_cell_state,
+                    transition.turn_direction,
+                    transition.new_internal_state,
+                    wrapped_x,
+                    wrapped_y,
+                ));
+                
+                self.batch_updates.push(((head.x, head.y), transition.new_cell_state, head.color));
             }
         }
 
         self.batch_set_cells();
 
         let updates = self.updates_buffer.clone();
-        for (i, _, direction, x, y) in updates {
+        for (i, _, turn_direction, new_internal_state, x, y) in updates {
             let head = &mut self.heads[i];
-            head.direction = direction;
+            head.direction = turn_direction.apply(head.direction);
+            head.internal_state = new_internal_state;
             head.move_to(x, y, config.simulation.trail_length);
         }
         
