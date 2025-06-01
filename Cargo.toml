@@ -1,0 +1,18 @@
+[package]
+name = "trmt"
+version = "0.1.0"
+edition = "2024"
+authors = ["cenonym <cenonym@proton.me>"]
+description = "2D Turing machine (turmite) simulator for the terminal"
+license = "GPL-3.0-or-later"
+keywords = ["turmite", "turing-machine", "cellular-automaton", "simulation"]
+categories = ["command-line-utilities", "simulation"]
+
+[dependencies]
+ratatui = "0.28"
+crossterm = "0.27"
+rand = "0.8"
+serde = { version = "1.0", features = ["derive"] }
+toml = "0.8"
+dirs = "5.0"
+rustc-hash = "2.0"
