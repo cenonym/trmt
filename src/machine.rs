@@ -436,8 +436,18 @@ impl TuringMachine {
                 break;
             };
             
-            // For single-state rules, always stay in state 0
-            let next_internal_state = 0;
+            // Determine next state based on rule progression
+            let next_internal_state = if total_states > 1 {
+                // Multi-state: advance to next state when rule completes
+                if cell_state_idx + 1 >= rule.len() {
+                    (state_idx + 1) % total_states
+                } else {
+                    state_idx
+                }
+            } else {
+                // Single-state: always stay in state 0
+                0
+            };
             
             self.rules.insert((state_idx, current_cell), StateTransition {
                 new_cell_state: next_cell,
