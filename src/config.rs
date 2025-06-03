@@ -316,26 +316,10 @@ impl Config {
                     return Err("rule combination cannot be empty".to_string());
                 }
                 
-                if let Some(colon_pos) = combo.find(':') {
-                    let full_action = &combo[..colon_pos];
-                    let state_part = &combo[colon_pos + 1..];
-                    
-                    // Split state prefix from action (e.g., "0D" -> "D")
-                    let action = if full_action.len() > 1 && full_action.chars().next().unwrap().is_ascii_digit() {
-                        &full_action[1..]
-                    } else {
-                        full_action
-                    };
-                    
-                    // Validate action part
-                    self.validate_direction_string(action)?;
-                    
-                    // Validate state number
-                    if !state_part.chars().all(|c| c.is_ascii_digit()) {
-                        return Err(format!("invalid state number '{}' in '{}'", state_part, combo));
-                    }
-                } else {
-                    self.validate_direction_string(combo)?;
+                // Split by colon first for multi-state format
+                let state_parts: Vec<&str> = combo.split(':').collect();
+                for state_part in state_parts {
+                    self.validate_direction_string(state_part)?;
                 }
             }
             return Ok(());
@@ -355,12 +339,24 @@ impl Config {
     }
 
     fn validate_direction_string(&self, rule: &str) -> Result<(), String> {
+        // Check if rule has state transition indicator
+        let directions = if let Some(transition_pos) = rule.find('>') {
+            let next_state_str = &rule[transition_pos + 1..];
+            // Validate state number
+            if !next_state_str.chars().all(|c| c.is_ascii_digit()) {
+                return Err(format!("invalid state number '{}' in rule '{}'", next_state_str, rule));
+            }
+            &rule[..transition_pos] // Validate only the directions part
+        } else {
+            rule
+        };
+        
         let mut i = 0;
-        while i < rule.len() {
-            let remaining = &rule[i..];
+        while i < directions.len() {
+            let remaining = &directions[i..];
             
             if remaining.starts_with("NW") || remaining.starts_with("NE") ||
-               remaining.starts_with("SW") || remaining.starts_with("SE") {
+            remaining.starts_with("SW") || remaining.starts_with("SE") {
                 i += 2;
             } else if let Some(c) = remaining.chars().next() {
                 match c {
