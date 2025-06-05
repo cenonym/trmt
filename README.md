@@ -1,17 +1,14 @@
-<table style="border:none; margin:0;">
-    <tr>
-        <td style="border:none; padding:0;">
-            <h1 style="font-size: 30px; color: #f17136;">▜▘▞▘▞▄▚▝▛</h1>
-        </td>
-        <td style="border:none; padding:1.8em 0 0 2em;">
-            <p style="line-height: 1.2;"> 2D Turing machine (turmite)<br>simulator for the terminal.</p>
-        </td>
-    </tr>
-</table>
-
-<br>
-
-![Crates.io](https://img.shields.io/crates/v/trmt?color=%23f17136) [![License](https://img.shields.io/badge/License-GPLv3-%23f17136.svg)](https://github.com/cenonym/trmt/blob/main/LICENSE)
+<div align="center">
+    <h1><span style="color:#f17136;">▜▘▞▘▞▄▚▝▛</span></h1>
+    <p>
+        2D Turing machine for your terminal.
+    </p>
+    <a href="https://crates.io/crates/trmt"><img alt="crates.io" src="https://img.shields.io/crates/v/trmt?color=%23f17136"></a>
+    <a href="https://github.com/cenonym/trmt/blob/main/LICENSE"><img alt="License" src="https://img.shields.io/badge/License-GPLv3-%23f17136.svg"></a>
+    <br>
+    <br>
+    <img src="/trmt_demo.gif" alt="trmt demo">
+</div>
 
 ---
 
