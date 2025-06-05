@@ -10,6 +10,7 @@ license = "GPL-3.0-or-later"
 readme = "README.md"
 keywords = ["turmite", "turing-machine", "cellular-automaton", "simulation"]
 categories = ["command-line-utilities", "simulation"]
+exclude = ["*.gif", "/.github"]
 
 [dependencies]
 ratatui = "0.28"
