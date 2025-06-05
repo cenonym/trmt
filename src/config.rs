@@ -24,8 +24,6 @@ pub struct SimulationConfig {
     pub trail_length: usize,
     #[serde(default = "default_infinite_trail")]
     pub infinite_trail: bool,
-    #[serde(default = "default_random_head_direction")]
-    pub random_head_direction: bool,
     #[serde(default = "default_seed")]
     pub seed: Option<String>,
 }
@@ -41,6 +39,7 @@ pub struct DisplayConfig {
     #[serde(default = "default_cell_char")]
     pub cell_char: String,
     
+    // Cached character data
     #[serde(skip)]
     pub head_char_data: Vec<CharData>,
     #[serde(skip)]
@@ -88,24 +87,18 @@ pub struct ControlsConfig {
 }
 
 // Default config
-fn default_heads() -> usize { 5 }
+fn default_heads() -> usize { 6 }
 fn default_rule() -> String { "RL".to_string() }
-fn default_speed() -> f64 { 100.0 }
-fn default_trail_length() -> usize { 20 }
+fn default_speed() -> f64 { 50.0 }
+fn default_trail_length() -> usize { 16 }
 fn default_colors() -> Vec<String> {
     vec![
-        "#FF5500".to_string(),
-        "#00FF88".to_string(),
-        "#8844FF".to_string(),
-        "#FFAA00".to_string(),
-        "rgb(255,100,150)".to_string(),
-        "rgb(100,255,200)".to_string(),
-        "rgb(200,100,255)".to_string(),
-        "88".to_string(),
-        "28".to_string(),
-        "129".to_string(),
-        "208".to_string(),
-        "39".to_string(),
+        "rgb(241, 113, 54)".to_string(),
+        "rgb(255,204,153)".to_string(),
+        "#FFB3D1".to_string(),
+        "#B3FFB3".to_string(),
+        "225".to_string(),
+        "194".to_string(),
     ]
 }
 fn default_head_char() -> Vec<String> { 
@@ -124,8 +117,7 @@ fn default_config_key() -> String { "c".to_string() }
 fn default_help_key() -> String { "h".to_string() }
 fn default_statusbar_key() -> String { "b".to_string() }
 fn default_seed_key() -> String { "s".to_string() }
-fn default_random_head_direction() -> bool { false }
-fn default_infinite_trail() -> bool { false }
+fn default_infinite_trail() -> bool { true }
 fn default_seed() -> Option<String> { Some(String::new()) }
 
 impl Default for Config {
@@ -146,7 +138,6 @@ impl Default for SimulationConfig {
             default_speed_ms: default_speed(),
             trail_length: default_trail_length(),
             infinite_trail: default_infinite_trail(),
-            random_head_direction: default_random_head_direction(),
             seed: default_seed(),
         }
     }
@@ -307,23 +298,65 @@ impl Config {
             return Err("rule string cannot be empty".to_string());
         }
 
+        // Handle explicit state rules (contains commas)
+        if rule.contains(',') {
+            let combinations: Vec<&str> = rule.split(',').collect();
+            for combo in combinations {
+                if combo.is_empty() {
+                    return Err("rule combination cannot be empty".to_string());
+                }
+                
+                // Split by colon first for multi-state format
+                let state_parts: Vec<&str> = combo.split(':').collect();
+                for state_part in state_parts {
+                    self.validate_direction_string(state_part)?;
+                }
+            }
+            return Ok(());
+        }
+
+        // Split by colon for multi-state rules
+        let state_rules: Vec<&str> = rule.split(':').collect();
+        
+        for state_rule in state_rules {
+            if state_rule.is_empty() {
+                return Err("state rule cannot be empty".to_string());
+            }
+            self.validate_direction_string(state_rule)?;
+        }
+
+        Ok(())
+    }
+
+    fn validate_direction_string(&self, rule: &str) -> Result<(), String> {
+        // Check if rule has state transition indicator
+        let directions = if let Some(transition_pos) = rule.find('>') {
+            let next_state_str = &rule[transition_pos + 1..];
+            // Validate state number
+            if !next_state_str.chars().all(|c| c.is_ascii_digit()) {
+                return Err(format!("invalid state number '{}' in rule '{}'", next_state_str, rule));
+            }
+            &rule[..transition_pos] // Validate only the directions part
+        } else {
+            rule
+        };
+        
         let mut i = 0;
-        while i < rule.len() {
-            let remaining = &rule[i..];
+        while i < directions.len() {
+            let remaining = &directions[i..];
             
             if remaining.starts_with("NW") || remaining.starts_with("NE") ||
-               remaining.starts_with("SW") || remaining.starts_with("SE") {
+            remaining.starts_with("SW") || remaining.starts_with("SE") {
                 i += 2;
             } else if let Some(c) = remaining.chars().next() {
                 match c {
-                    'L' | 'R' | 'N' | 'S' | 'E' | 'W' => i += 1,
-                    _ => return Err(format!("invalid character '{}' at position {}", c, i)),
+                    'L' | 'R' | 'U' | 'D' | 'N' | 'S' | 'E' | 'W' | '0'..='9' => i += 1,
+                    _ => return Err(format!("invalid character '{}' in rule '{}'", c, rule)),
                 }
             } else {
                 break;
             }
         }
-
         Ok(())
     }
 
@@ -384,7 +417,7 @@ impl Config {
     pub fn toggle_seed(&mut self, current_seed: &str) -> Result<(), Box<dyn Error>> {
         let config_path = Self::config_dir().join("config.toml");
         
-        // Update seed
+        // Update seed in config
         if let Some(config_seed) = &self.simulation.seed {
             if config_seed == current_seed {
                 self.simulation.seed = Some(String::new()); // Clear seed
@@ -429,7 +462,7 @@ impl Config {
             }
         }
 
-        // Pasre 256-colors
+        // Parse 256-colors
         if let Ok(index) = color_str.parse::<u8>() {
             return Color::Indexed(index);
         }
