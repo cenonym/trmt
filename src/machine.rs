@@ -163,7 +163,7 @@ impl TuringMachine {
             rule_string: rule_string.to_string(),
             rules: BTreeMap::new(),
             num_heads: num_heads.min(256),
-            running: false,
+            running: true,
             steps: 0,
             current_seed: String::new(),
             colors: Vec::new(),
@@ -221,21 +221,7 @@ impl TuringMachine {
             let x = rng.gen_range(0..100);
             let y = rng.gen_range(0..100);
             let color = self.colors[i % self.colors.len()];
-            let mut head = Head::new(x, y, color);
-            
-            if config.simulation.random_head_direction {
-                head.direction = match rng.gen_range(0..8) {
-                    0 => Direction::Up,
-                    1 => Direction::Down,
-                    2 => Direction::Left,
-                    3 => Direction::Right,
-                    4 => Direction::UpLeft,
-                    5 => Direction::UpRight,
-                    6 => Direction::DownLeft,
-                    7 => Direction::DownRight,
-                    _ => Direction::Up,
-                };
-            }
+            let head = Head::new(x, y, color);
             
             self.heads.push(head);
         }

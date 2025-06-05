@@ -24,8 +24,6 @@ pub struct SimulationConfig {
     pub trail_length: usize,
     #[serde(default = "default_infinite_trail")]
     pub infinite_trail: bool,
-    #[serde(default = "default_random_head_direction")]
-    pub random_head_direction: bool,
     #[serde(default = "default_seed")]
     pub seed: Option<String>,
 }
@@ -89,24 +87,18 @@ pub struct ControlsConfig {
 }
 
 // Default config
-fn default_heads() -> usize { 4 }
+fn default_heads() -> usize { 6 }
 fn default_rule() -> String { "RL".to_string() }
-fn default_speed() -> f64 { 100.0 }
-fn default_trail_length() -> usize { 20 }
+fn default_speed() -> f64 { 50.0 }
+fn default_trail_length() -> usize { 16 }
 fn default_colors() -> Vec<String> {
     vec![
-        "#FF5500".to_string(),
-        "#00FF88".to_string(),
-        "#8844FF".to_string(),
-        "#FFAA00".to_string(),
-        "rgb(255,100,150)".to_string(),
-        "rgb(100,255,200)".to_string(),
-        "rgb(200,100,255)".to_string(),
-        "88".to_string(),
-        "28".to_string(),
-        "129".to_string(),
-        "208".to_string(),
-        "39".to_string(),
+        "rgb(241, 113, 54)".to_string(),
+        "rgb(255,204,153)".to_string(),
+        "#FFB3D1".to_string(),
+        "#B3FFB3".to_string(),
+        "225".to_string(),
+        "194".to_string(),
     ]
 }
 fn default_head_char() -> Vec<String> { 
@@ -125,8 +117,7 @@ fn default_config_key() -> String { "c".to_string() }
 fn default_help_key() -> String { "h".to_string() }
 fn default_statusbar_key() -> String { "b".to_string() }
 fn default_seed_key() -> String { "s".to_string() }
-fn default_random_head_direction() -> bool { false }
-fn default_infinite_trail() -> bool { false }
+fn default_infinite_trail() -> bool { true }
 fn default_seed() -> Option<String> { Some(String::new()) }
 
 impl Default for Config {
@@ -147,7 +138,6 @@ impl Default for SimulationConfig {
             default_speed_ms: default_speed(),
             trail_length: default_trail_length(),
             infinite_trail: default_infinite_trail(),
-            random_head_direction: default_random_head_direction(),
             seed: default_seed(),
         }
     }

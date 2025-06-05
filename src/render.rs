@@ -199,23 +199,21 @@ fn render_pixel_grid(f: &mut ratatui::Frame, app: &App, area: Rect) {
     let cell_char_data = &app.config.display.cell_char_data;
 
     // Render tape cells
-    for (&(x, y), &state) in &app.machine.tape {
-        if state != 'A' { // Only render non-default states
-            let (grid_x, grid_y) = wrap_coords(x, y, width, height);
-            let buffer_x = area.x + (grid_x * 2) as u16;
-            let buffer_y = area.y + grid_y as u16;
-            
-            let color = if app.config.simulation.infinite_trail {
-                app.machine.tape_colors.get(&(x, y)).copied().unwrap_or(Color::White)
-            } else {
-                Color::White
-            };
-            
-            // Use cached character data
-            for (i, &ch) in cell_char_data.chars.iter().enumerate() {
-                let char_x = buffer_x + i as u16;
-                if char_x < area.x + area.width && buffer_y < area.y + area.height {
-                    f.buffer_mut()[(char_x, buffer_y)].set_char(ch).set_fg(color);
+    if app.config.simulation.infinite_trail {
+        for (&(x, y), &state) in &app.machine.tape {
+            if state != 'A' { // Only render non-default states
+                let (grid_x, grid_y) = wrap_coords(x, y, width, height);
+                let buffer_x = area.x + (grid_x * 2) as u16;
+                let buffer_y = area.y + grid_y as u16;
+                
+                let color = app.machine.tape_colors.get(&(x, y)).copied().unwrap_or(Color::White);
+                
+                // Use cached character data
+                for (i, &ch) in cell_char_data.chars.iter().enumerate() {
+                    let char_x = buffer_x + i as u16;
+                    if char_x < area.x + area.width && buffer_y < area.y + area.height {
+                        f.buffer_mut()[(char_x, buffer_y)].set_char(ch).set_fg(color);
+                    }
                 }
             }
         }
