@@ -112,10 +112,10 @@ fn run_app<B: ratatui::backend::Backend>(
                                     ConfigLoadResult::Success(config) => {
                                         app.config = config;
                                         app.config.display.cache_char_data();
-                                        app.machine.set_head_count(app.config.simulation.default_heads, &app.config);
-                                        app.step_interval = Duration::from_nanos((app.config.simulation.default_speed_ms * 1_000_000.0) as u64);
-                                        app.machine.parse_rules(&app.config.simulation.default_rule);
-                                        app.machine.rule_string = app.config.simulation.default_rule.clone();
+                                        app.machine.set_head_count(app.config.simulation.heads, &app.config);
+                                        app.step_interval = Duration::from_nanos((app.config.simulation.speed_ms * 1_000_000.0) as u64);
+                                        app.machine.parse_rules(&app.config.simulation.rule);
+                                        app.machine.rule_string = app.config.simulation.rule.clone();
                                         app.machine.update_colors(&app.config);
                                         app.machine.reset(&app.config);
                                         app.error_message = None; // Clear any existing errors

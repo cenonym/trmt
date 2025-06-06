@@ -84,11 +84,11 @@ trmt
 #### Example config
 ```toml
 [simulation]
-default_heads = 3                   # Number of heads on initialization
-default_rule = "RL"                 # Rules for the simulation
-default_speed_ms = 20               # Simulation speed in milliseconds
+heads = 3                           # Number of heads on initialization
+rule = "RL"                         # Rules for the simulation
+speed_ms = 20                       # Simulation speed in milliseconds
 trail_length = 24                   # Number of trail characters following the head
-infinite_trail = true               # If true, leaves behind an infinite trail of colored cell chars
+color_cells = true                  # If true, leaves behind an infinite trail of colored cell chars
 seed = ""                           # Empty = random
 
 [display]
@@ -97,9 +97,11 @@ colors = [                          # Array of colors mapped to number of heads 
     "#45a8e9",
     "229",
 ]
+state_based_colors = false          # Printed cells use color config per state
+live_colors = false                 # Heads change color with state, only works with state_based_colors = true
 head_char = ["██"]                  # Array of head characters, trmt will cycle through it sequentially per step
 trail_char = ["▓▓"]                 # Array of trail characters, where first character is mapped to first trail, and so on
-cell_char = "░░"                    # The characters left behind the trail when infinite_trail = true
+cell_char = "░░"                    # The characters left behind the trail when color_cells = true
 
 [controls]
 quit = "q"                          # Quit
@@ -137,7 +139,7 @@ The parser has deterministic left-to-right precedence, so `"NE"` always becomes 
 **Basic sequential format**
 Using the states above, we can create simple sequential rules that move through each state in turn. One of the simplest and most famous turmites is [Langton's Ant](https://en.wikipedia.org/wiki/Langton%27s_ant), which can be replicated with **trmt** using just `RL` as a rule.
 ```toml
-default_rule = "RL"
+rule = "RL"
 ```
 
 Or try something like `WRSWNL` or `RRLL`, or even `RULE` if you're feeling meta.
@@ -155,7 +157,7 @@ For precise control, you can specify which cell state to write:
 
 This lets us translate a traditional turmite notation like `{{{1, 8, 1}, {1, 8, 1}}, {{1, 2, 1}, {0, 1, 0}}}` into a more ~~opinionated~~ readable syntax:
 ```toml
-default_rule = "L1>1,L1>1:R1>1,D0>0"
+rule = "L1>1,L1>1:R1>1,D0>0"
 ```
 Which constructs a [Fibonacci spiral](https://en.wikipedia.org/wiki/Turmite#/media/File:Turmite-181181121010-10211.svg).
 
@@ -165,8 +167,8 @@ When building new rules, it is recommended to use `1` head for testing to make t
 ### Planned
 - [x] ~~Improved error handling and printing~~
 - [x] ~~Redesign help and statusbar TUI~~
+- [x] ~~Per-state color customization~~
 - [ ] Clean up reset and config reload functions
-- [ ] Per-state color customization
 - [ ] Customizable initial head direction
 - [ ] Toggleable random characters for both heads and trails
 - [ ] Support for 32-bit colors

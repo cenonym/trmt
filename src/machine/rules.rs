@@ -102,10 +102,8 @@ pub fn parse_rules(rule_string: &str) -> BTreeMap<(usize, char), StateTransition
     let mut rules = BTreeMap::new();
     
     if rule_string.contains('>') || rule_string.contains(':') {
-        // Enhanced or legacy multi-state format
         parse_multi_state_rules(rule_string, &mut rules);
     } else {
-        // Simple sequential
         parse_single_state_rules(rule_string, &mut rules);
     }
     
@@ -172,13 +170,13 @@ fn parse_enhanced_state_rule(
 ) {
     let states = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K', 'L', 'M', 'N', 'O', 'P', 'Q', 'R', 'S', 'T', 'U', 'V', 'W', 'X', 'Y', 'Z'];
     
-    // Handle comma-separated transitions
+    // Handle internal multi-state
     if rule.contains(',') {
         let transitions: Vec<&str> = rule.split(',').collect();
         for (cell_idx, transition) in transitions.iter().enumerate() {
             if cell_idx >= states.len() { break; }
             
-            // Parse direction and cell specification (e.g., "L1>1" or "R0>0")
+            // Parse direction and cell specification
             let (directions, next_state) = if let Some(transition_pos) = transition.find('>') {
                 let directions = &transition[..transition_pos];
                 let next_state_str = &transition[transition_pos + 1..];
@@ -234,7 +232,7 @@ fn parse_enhanced_state_rule(
         let next_state = next_state_str.parse::<usize>().unwrap_or(state_idx);
         (directions, next_state)
     } else {
-        // Auto-cycle for legacy multi-state format (no > transitions)
+        // Auto-cycle for simple multi-state format
         let total_states = all_state_rules.len();
         let next_state = if total_states > 1 {
             (state_idx + 1) % total_states

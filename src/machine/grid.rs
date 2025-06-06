@@ -20,8 +20,8 @@ impl Grid {
         self.tape.get(&(x, y)).copied().unwrap_or('A')
     }
 
-    pub fn set_cell(&mut self, x: i32, y: i32, state: char, color: Color) {
-        if state == 'A' {
+    pub fn set_cell(&mut self, x: i32, y: i32, state: char, color: Color, state_based_colors: bool) {
+        if state == 'A' && !state_based_colors {
             self.tape.remove(&(x, y));
             self.tape_colors.remove(&(x, y));
         } else {

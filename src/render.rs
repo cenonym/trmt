@@ -105,12 +105,12 @@ impl App {
     pub fn new(config: Config) -> Self {
         Self {
             machine: TuringMachine::new(
-                config.simulation.default_heads,
-                &config.simulation.default_rule,
+                config.simulation.heads,
+                &config.simulation.rule,
                 &config
             ),
             last_step: std::time::Instant::now(),
-            step_interval: Duration::from_nanos((config.simulation.default_speed_ms * 1_000_000.0) as u64),
+            step_interval: Duration::from_nanos((config.simulation.speed_ms * 1_000_000.0) as u64),
             config,
             show_help: false,
             show_statusbar: false,
@@ -147,10 +147,9 @@ impl App {
 }
 
 pub fn ui(f: &mut ratatui::Frame, app: &mut App) {
-    // Use full area for simulation
     render_pixel_grid(f, app, f.area());
 
-    // Render overlays (error has highest priority)
+    // Render overlays
     if let Some(ref error) = app.error_message {
         render_error_overlay(f, app, error);
     } else if app.show_statusbar {
@@ -169,7 +168,7 @@ pub fn render_enhanced_popup(
 ) {
     let area = f.area();
     
-    // Calculate dimensions accounting for horizontal padding (left + right)
+    // Calculate dimensions
     let max_line_width = content.iter()
         .map(|line| line.width())
         .max()
@@ -196,7 +195,6 @@ pub fn render_enhanced_popup(
         content.len() as u16
     };
     
-    // Height: border + top padding + bottom padding
     let border_height = 2 + config.padding;
     let total_height = wrapped_lines + border_height;
     
@@ -217,24 +215,24 @@ pub fn render_enhanced_popup(
     let block = Block::default()
         .borders(Borders::ALL)
         .border_set(border::ROUNDED)
-        .title(format!(" {} ", config.title)) // Add padding to title
+        .title(format!(" {} ", config.title))
         .title_alignment(Alignment::Left)
         .title_style(config.title_style)
         .border_style(config.border_style)
         .style(config.background_style);
 
-    // Content area: 1 padding on sides, config.padding on top and bottom
+    // Content area
     let content_area = Rect {
-        x: popup_area.x + 2, // border + left padding
+        x: popup_area.x + 2,
         y: popup_area.y + 1 + config.padding, // border + top padding
         width: popup_area.width.saturating_sub(4), // subtract left+right padding
         height: popup_area.height.saturating_sub(2 + config.padding), // subtract borders + top padding
     };
 
-    // Render background block
+    // Render background
     f.render_widget(block, popup_area);
 
-    // Render content with enhanced styling
+    // Render content
     let enhanced_content: Vec<Line> = content.into_iter().map(|line| {
         let spans: Vec<Span> = line.spans.into_iter().map(|span| {
             if span.style == Style::default() {
@@ -356,14 +354,13 @@ fn render_statusbar_overlay(f: &mut ratatui::Frame, app: &App) {
     let running_text = if app.machine.running { "Running" } else { "Paused" };
     
     let status_text = format!(
-        "Heads: {} | Steps: {} | Speed: {} | Rule: {} | Seed: {} | {} | {} for help | x to close",
+        "{} | Heads: {} | Steps: {} | Speed: {} | Rule: {} | Seed: {}",
+        running_text,
         app.machine.num_heads,
         app.machine.steps,
         current_speed,
         app.machine.rule_string,
-        app.machine.current_seed,
-        running_text,
-        app.config.controls.help.to_uppercase()
+        app.machine.current_seed
     );
 
     let content = vec![Line::from(status_text)];
@@ -379,13 +376,13 @@ fn render_pixel_grid(f: &mut ratatui::Frame, app: &App, area: Rect) {
     let width = area.width as i32 / 2;
     let height = area.height as i32;
 
-    // Get cached character data from config
+    // Get cached character data
     let cell_char_data = &app.config.display.cell_char_data;
 
     // Render tape cells
-    if app.config.simulation.infinite_trail {
+    if app.config.simulation.color_cells {
         for (&(x, y), &state) in app.machine.tape() {
-            if state != 'A' { // Only render non-default states
+            if app.config.display.should_render_cell(state) {
                 let (grid_x, grid_y) = wrap_coords(x, y, width, height);
                 let buffer_x = area.x + (grid_x * 2) as u16;
                 let buffer_y = area.y + grid_y as u16;

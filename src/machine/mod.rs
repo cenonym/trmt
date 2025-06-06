@@ -25,7 +25,7 @@ pub struct TuringMachine {
     pub current_seed: String,
     colors: Vec<Color>,
     cached_parsed_colors: FxHashMap<String, Color>,
-    updates_buffer: Vec<(usize, char, TurnDirection, usize, i32, i32)>,
+    updates_buffer: Vec<(usize, char, TurnDirection, usize, i32, i32, Color)>,
     pub dirty_cells: FxHashSet<(i32, i32)>,
 }
 
@@ -58,7 +58,7 @@ impl TuringMachine {
             .collect();
         
         for (i, head) in self.heads.iter_mut().enumerate() {
-            head.color = self.colors[i % self.colors.len()];
+            head.color = config.display.get_head_color(i, config);
         }
     }
 
@@ -93,8 +93,10 @@ impl TuringMachine {
         for i in 0..self.num_heads {
             let x = rng.gen_range(0..100);
             let y = rng.gen_range(0..100);
-            let color = self.colors[i % self.colors.len()];
-            let head = Head::new(x, y, color);
+            let mut head = Head::new(x, y, Color::White);
+            
+            // Set proper color using head index
+            head.color = config.display.get_head_color(i, config);
             
             self.heads.push(head);
         }
@@ -158,6 +160,13 @@ impl TuringMachine {
                 let wrapped_x = ((new_x % width) + width) % width;
                 let wrapped_y = ((new_y % height) + height) % height;
                 
+                // Live head color
+                let preview_head_color = if config.display.state_based_colors && config.display.live_colors {
+                    config.display.get_cell_color(transition.new_cell_state, i, config)
+                } else {
+                    config.display.get_head_color(i, config)
+                };
+                
                 self.updates_buffer.push((
                     i,
                     transition.new_cell_state,
@@ -165,18 +174,22 @@ impl TuringMachine {
                     transition.new_internal_state,
                     wrapped_x,
                     wrapped_y,
+                    preview_head_color,
                 ));
                 
-                self.grid.set_cell(head.x, head.y, transition.new_cell_state, head.color);
+                // Use state-based or head-based coloring
+                let cell_color = config.display.get_cell_color(transition.new_cell_state, i, config);
+                self.grid.set_cell(head.x, head.y, transition.new_cell_state, cell_color, config.display.state_based_colors);
                 self.dirty_cells.insert((head.x, head.y));
             }
         }
 
         let updates = self.updates_buffer.clone();
-        for (i, _, turn_direction, new_internal_state, x, y) in updates {
+        for (i, _, turn_direction, new_internal_state, x, y, live_color) in updates {
             let head = &mut self.heads[i];
             head.direction = turn_direction.apply(head.direction);
             head.internal_state = new_internal_state;
+            head.color = live_color;
             head.move_to(x, y, config.simulation.trail_length);
         }
         
@@ -200,7 +213,6 @@ impl TuringMachine {
         self.spawn_heads(config);
     }
 
-    // Accessor methods for render module
     pub fn tape(&self) -> &FxHashMap<(i32, i32), char> {
         &self.grid.tape
     }
