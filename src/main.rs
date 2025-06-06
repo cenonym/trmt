@@ -17,11 +17,22 @@ use std::{
     time::Duration,
 };
 
-use config::Config;
+use config::{Config, ConfigLoadResult};
 use render::{App, ui};
 
 fn main() -> Result<(), Box<dyn Error>> {
-    let config = Config::load();
+    let (config, error_message) = match Config::load() {
+        ConfigLoadResult::Success(config) => (config, None),
+        ConfigLoadResult::ValidationErrors(config, errors) => {
+            (config, Some(format!("Config validation failed:\n{}", errors.join("\n"))))
+        },
+        ConfigLoadResult::ParseError(config, error) => {
+            (config, Some(format!("Config parse error: {}", error)))
+        },
+        ConfigLoadResult::IoError(config, error) => {
+            (config, Some(format!("Config I/O error: {}", error)))
+        },
+    };
     
     enable_raw_mode()?;
     let mut stdout = io::stdout();
@@ -30,6 +41,12 @@ fn main() -> Result<(), Box<dyn Error>> {
     let mut terminal = Terminal::new(backend)?;
 
     let mut app = App::new(config);
+    
+    // Show error if config loading failed
+    if let Some(error) = error_message {
+        app.show_error(error);
+    }
+    
     let res = run_app(&mut terminal, &mut app);
 
     disable_raw_mode()?;
@@ -91,14 +108,31 @@ fn run_app<B: ratatui::backend::Backend>(
                                 }
                             },
                             s if s == app.config.controls.config_reload => {
-                                app.config = Config::load();
-                                app.config.display.cache_char_data();
-                                app.machine.set_head_count(app.config.simulation.default_heads, &app.config);
-                                app.step_interval = Duration::from_nanos((app.config.simulation.default_speed_ms * 1_000_000.0) as u64);
-                                app.machine.parse_rules(&app.config.simulation.default_rule);
-                                app.machine.rule_string = app.config.simulation.default_rule.clone();
-                                app.machine.update_colors(&app.config);
-                                app.machine.reset(&app.config);
+                                match Config::load() {
+                                    ConfigLoadResult::Success(config) => {
+                                        app.config = config;
+                                        app.config.display.cache_char_data();
+                                        app.machine.set_head_count(app.config.simulation.default_heads, &app.config);
+                                        app.step_interval = Duration::from_nanos((app.config.simulation.default_speed_ms * 1_000_000.0) as u64);
+                                        app.machine.parse_rules(&app.config.simulation.default_rule);
+                                        app.machine.rule_string = app.config.simulation.default_rule.clone();
+                                        app.machine.update_colors(&app.config);
+                                        app.machine.reset(&app.config);
+                                        app.error_message = None; // Clear any existing errors
+                                    },
+                                    ConfigLoadResult::ValidationErrors(config, errors) => {
+                                        app.config = config;
+                                        app.show_error(format!("Config validation failed:\n{}", errors.join("\n")));
+                                    },
+                                    ConfigLoadResult::ParseError(config, error) => {
+                                        app.config = config;
+                                        app.show_error(format!("Config parse error: {}", error));
+                                    },
+                                    ConfigLoadResult::IoError(config, error) => {
+                                        app.config = config;
+                                        app.show_error(format!("Config I/O error: {}", error));
+                                    },
+                                }
                             },
                             "1" => app.machine.set_head_count(1, &app.config),
                             "2" => app.machine.set_head_count(2, &app.config),
@@ -114,6 +148,7 @@ fn run_app<B: ratatui::backend::Backend>(
                             s if s == app.config.controls.seed_toggle => {
                                 let _ = app.config.toggle_seed(&app.machine.current_seed);
                             },
+                            "x" => app.clear_overlays(),
                             _ => {}
                         }
                     },

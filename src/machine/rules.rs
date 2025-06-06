@@ -172,7 +172,7 @@ fn parse_enhanced_state_rule(
 ) {
     let states = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K', 'L', 'M', 'N', 'O', 'P', 'Q', 'R', 'S', 'T', 'U', 'V', 'W', 'X', 'Y', 'Z'];
     
-    // Handle comma-separated transitions first
+    // Handle comma-separated transitions
     if rule.contains(',') {
         let transitions: Vec<&str> = rule.split(',').collect();
         for (cell_idx, transition) in transitions.iter().enumerate() {
@@ -190,7 +190,7 @@ fn parse_enhanced_state_rule(
             
             let current_cell = states[cell_idx];
             
-            // Check if direction string ends with a cell specifier (0 or 1)
+            // Check if direction string ends with a cell specifier
             let (direction_part, next_cell) = if let Some(last_char) = directions.chars().last() {
                 if last_char.is_ascii_digit() {
                     let cell_idx = last_char.to_digit(10).unwrap_or(0) as usize;
@@ -198,7 +198,6 @@ fn parse_enhanced_state_rule(
                     let direction_part = &directions[..directions.len() - 1];
                     (direction_part, next_cell)
                 } else {
-                    // Default A↔B cycling for compatibility
                     (directions, states[(cell_idx + 1) % 2])
                 }
             } else {

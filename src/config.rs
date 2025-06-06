@@ -189,8 +189,15 @@ impl DisplayConfig {
     }
 }
 
+pub enum ConfigLoadResult {
+    Success(Config),
+    ValidationErrors(Config, Vec<String>),
+    ParseError(Config, String),
+    IoError(Config, String),
+}
+
 impl Config {
-    pub fn load() -> Self {
+    pub fn load() -> ConfigLoadResult {
         let config_path = Self::config_dir().join("config.toml");
         
         if config_path.exists() {
@@ -198,26 +205,22 @@ impl Config {
                 Ok(content) => match toml::from_str::<Config>(&content) {
                     Ok(mut config) => {
                         if let Err(errors) = config.validate() {
-                            eprintln!("Config validation failed:");
-                            for error in errors {
-                                eprintln!("  {}", error);
-                            }
-                            eprintln!("Using default config instead.");
+                            ConfigLoadResult::ValidationErrors(Config::default(), errors)
                         } else {
                             config.display.cache_char_data();
-                            return config;
+                            ConfigLoadResult::Success(config)
                         }
                     },
-                    Err(e) => eprintln!("Failed to parse config: {}", e),
+                    Err(e) => ConfigLoadResult::ParseError(Config::default(), e.to_string()),
                 },
-                Err(e) => eprintln!("Failed to read config: {}", e),
+                Err(e) => ConfigLoadResult::IoError(Config::default(), e.to_string()),
             }
+        } else {
+            // Return default config and create example file
+            let default_config = Self::default();
+            let _ = default_config.create_example_config();
+            ConfigLoadResult::Success(default_config)
         }
-        
-        // Return default config and create example file
-        let default_config = Self::default();
-        let _ = default_config.create_example_config();
-        default_config
     }
 
     pub fn validate(&self) -> Result<(), Vec<String>> {

@@ -163,12 +163,12 @@ When building new rules, it is recommended to use `1` head for testing to make t
 <br>
 
 ### Planned
-- [ ] Improved error handling and printing
+- [x] ~~Improved error handling and printing~~
+- [x] ~~Redesign help and statusbar TUI~~
 - [ ] Clean up reset and config reload functions
 - [ ] Per-state color customization
 - [ ] Customizable initial head direction
 - [ ] Toggleable random characters for both heads and trails
-- [ ] Redesign help and statusbar TUI
 - [ ] Support for 32-bit colors
 - [ ] Proper wiki/documentation
 <br>
