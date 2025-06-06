@@ -118,7 +118,7 @@ fn render_statusbar_overlay(f: &mut ratatui::Frame, app: &App) {
 
 fn render_help_overlay(f: &mut ratatui::Frame, app: &App) {
     let area = f.area();
-    let popup_area = centered_rect(60, 70, area);
+    let popup_area = centered_rect(60, 50, area);
     
     // Clear the area behind the help popup
     f.render_widget(Clear, popup_area);
@@ -135,6 +135,7 @@ fn render_help_overlay(f: &mut ratatui::Frame, app: &App) {
         Line::from(format!("{}: Reload config", app.config.controls.config_reload)),
         Line::from(format!("{}: Toggle help", app.config.controls.help)),
         Line::from(format!("{}: Toggle statusbar", app.config.controls.statusbar)),
+        Line::from(format!("{}: Toggle seed", app.config.controls.seed_toggle)),
         Line::from(""),
         Line::from(vec![Span::styled("Head Count", Style::default().add_modifier(Modifier::BOLD))]),
         Line::from(""),
@@ -142,15 +143,8 @@ fn render_help_overlay(f: &mut ratatui::Frame, app: &App) {
         Line::from("4: 8 heads    5: 16 heads   6: 32 heads"),
         Line::from("7: 64 heads   8: 128 heads  9: 256 heads"),
         Line::from(""),
-        Line::from(vec![Span::styled("Configuration", Style::default().add_modifier(Modifier::BOLD))]),
-        Line::from(""),
-        Line::from("Edit ~/.config/trmt/config.toml to customize:"),
-        Line::from("• Rules, colors, display characters"),
-        Line::from("• Default settings and controls"),
-        Line::from("• Trail length and behavior"),
-        Line::from(""),
         Line::from(vec![Span::styled(
-            format!("Press {} to close help", app.config.controls.help.to_uppercase()),
+            format!("{} to close help", app.config.controls.help.to_uppercase()),
             Style::default().add_modifier(Modifier::BOLD)
         )]),
     ];
@@ -200,13 +194,13 @@ fn render_pixel_grid(f: &mut ratatui::Frame, app: &App, area: Rect) {
 
     // Render tape cells
     if app.config.simulation.infinite_trail {
-        for (&(x, y), &state) in &app.machine.tape {
+        for (&(x, y), &state) in app.machine.tape() {
             if state != 'A' { // Only render non-default states
                 let (grid_x, grid_y) = wrap_coords(x, y, width, height);
                 let buffer_x = area.x + (grid_x * 2) as u16;
                 let buffer_y = area.y + grid_y as u16;
                 
-                let color = app.machine.tape_colors.get(&(x, y)).copied().unwrap_or(Color::White);
+                let color = app.machine.tape_colors().get(&(x, y)).copied().unwrap_or(Color::White);
                 
                 // Use cached character data
                 for (i, &ch) in cell_char_data.chars.iter().enumerate() {
