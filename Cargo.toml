@@ -1,6 +1,6 @@
 [package]
 name = "trmt"
-version = "0.2.1"
+version = "0.3.0"
 edition = "2024"
 authors = ["cenonym <cenonym@proton.me>"]
 description = "2D Turing machine (turmite) simulator for the terminal"
@@ -8,7 +8,7 @@ repository = "https://github.com/cenonym/trmt"
 homepage = "https://github.com/cenonym/trmt"
 license = "GPL-3.0-or-later"
 readme = "README.md"
-keywords = ["turmite", "turing-machine", "cellular-automaton", "simulation"]
+keywords = ["cli", "utility", "tui", "simulation", "generator"]
 categories = ["command-line-utilities", "simulation", "science", "visualization", "mathematics" ]
 exclude = ["*.gif", "/.github"]
 

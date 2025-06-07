@@ -3,6 +3,7 @@ use serde::{Deserialize, Serialize};
 use std::{error::Error, fs, path::PathBuf};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Default)]
 pub struct Config {
     #[serde(default)]
     pub simulation: SimulationConfig,
@@ -126,15 +127,6 @@ fn seed_key() -> String { "s".to_string() }
 fn color_cells() -> bool { true }
 fn seed() -> Option<String> { Some(String::new()) }
 
-impl Default for Config {
-    fn default() -> Self {
-        Self {
-            simulation: SimulationConfig::default(),
-            display: DisplayConfig::default(),
-            controls: ControlsConfig::default(),
-        }
-    }
-}
 
 impl Default for SimulationConfig {
     fn default() -> Self {

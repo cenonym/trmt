@@ -187,7 +187,7 @@ pub fn render_enhanced_popup(
                 if line_width == 0 {
                     1
                 } else {
-                    (line_width + content_width - 1) / content_width
+                    line_width.div_ceil(content_width)
                 }
             })
             .sum()
