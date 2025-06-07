@@ -3,6 +3,7 @@ use serde::{Deserialize, Serialize};
 use std::{error::Error, fs, path::PathBuf};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Default)]
 pub struct Config {
     #[serde(default)]
     pub simulation: SimulationConfig,
@@ -14,29 +15,33 @@ pub struct Config {
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct SimulationConfig {
-    #[serde(default = "default_heads")]
-    pub default_heads: usize,
-    #[serde(default = "default_rule")]
-    pub default_rule: String,
-    #[serde(default = "default_speed")]
-    pub default_speed_ms: f64,
-    #[serde(default = "default_trail_length")]
+    #[serde(default = "heads")]
+    pub heads: usize,
+    #[serde(default = "rule")]
+    pub rule: String,
+    #[serde(default = "speed")]
+    pub speed_ms: f64,
+    #[serde(default = "trail_length")]
     pub trail_length: usize,
-    #[serde(default = "default_infinite_trail")]
-    pub infinite_trail: bool,
-    #[serde(default = "default_seed")]
+    #[serde(default = "color_cells")]
+    pub color_cells: bool,
+    #[serde(default = "seed")]
     pub seed: Option<String>,
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct DisplayConfig {
-    #[serde(default = "default_colors")]
+    #[serde(default = "colors")]
     pub colors: Vec<String>,
-    #[serde(default = "default_head_char")]
+    #[serde(default = "state_based_colors")]
+    pub state_based_colors: bool,
+    #[serde(default = "live_colors")]
+    pub live_colors: bool,
+    #[serde(default = "head_char")]
     pub head_char: Vec<String>,
-    #[serde(default = "default_trail_char")]
+    #[serde(default = "trail_char")]
     pub trail_char: Vec<String>,
-    #[serde(default = "default_cell_char")]
+    #[serde(default = "cell_char")]
     pub cell_char: String,
     
     // Cached character data
@@ -66,32 +71,32 @@ impl CharData {
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct ControlsConfig {
-    #[serde(default = "default_quit_key")]
+    #[serde(default = "quit_key")]
     pub quit: String,
-    #[serde(default = "default_toggle_key")]
+    #[serde(default = "toggle_key")]
     pub toggle: String,
-    #[serde(default = "default_reset_key")]
+    #[serde(default = "reset_key")]
     pub reset: String,
-    #[serde(default = "default_faster_key")]
+    #[serde(default = "faster_key")]
     pub faster: String,
-    #[serde(default = "default_slower_key")]
+    #[serde(default = "slower_key")]
     pub slower: String,
-    #[serde(default = "default_config_key")]
+    #[serde(default = "config_key")]
     pub config_reload: String,
-    #[serde(default = "default_help_key")]
+    #[serde(default = "help_key")]
     pub help: String,
-    #[serde(default = "default_statusbar_key")]
+    #[serde(default = "statusbar_key")]
     pub statusbar: String,
-    #[serde(default = "default_seed_key")]
+    #[serde(default = "seed_key")]
     pub seed_toggle: String,
 }
 
 // Default config
-fn default_heads() -> usize { 6 }
-fn default_rule() -> String { "RL".to_string() }
-fn default_speed() -> f64 { 50.0 }
-fn default_trail_length() -> usize { 16 }
-fn default_colors() -> Vec<String> {
+fn heads() -> usize { 6 }
+fn rule() -> String { "RL".to_string() }
+fn speed() -> f64 { 50.0 }
+fn trail_length() -> usize { 16 }
+fn colors() -> Vec<String> {
     vec![
         "rgb(241, 113, 54)".to_string(),
         "rgb(255,204,153)".to_string(),
@@ -101,44 +106,37 @@ fn default_colors() -> Vec<String> {
         "194".to_string(),
     ]
 }
-fn default_head_char() -> Vec<String> { 
+fn state_based_colors() -> bool { false }
+fn live_colors() -> bool { false }
+fn head_char() -> Vec<String> { 
     vec!["██".to_string()] 
 }
-fn default_trail_char() -> Vec<String> { 
+fn trail_char() -> Vec<String> { 
     vec!["▓▓".to_string()] 
 }
-fn default_cell_char() -> String { "░░".to_string() }
-fn default_quit_key() -> String { "q".to_string() }
-fn default_toggle_key() -> String { " ".to_string() }
-fn default_reset_key() -> String { "r".to_string() }
-fn default_faster_key() -> String { "+".to_string() }
-fn default_slower_key() -> String { "-".to_string() }
-fn default_config_key() -> String { "c".to_string() }
-fn default_help_key() -> String { "h".to_string() }
-fn default_statusbar_key() -> String { "b".to_string() }
-fn default_seed_key() -> String { "s".to_string() }
-fn default_infinite_trail() -> bool { true }
-fn default_seed() -> Option<String> { Some(String::new()) }
+fn cell_char() -> String { "░░".to_string() }
+fn quit_key() -> String { "q".to_string() }
+fn toggle_key() -> String { " ".to_string() }
+fn reset_key() -> String { "r".to_string() }
+fn faster_key() -> String { "+".to_string() }
+fn slower_key() -> String { "-".to_string() }
+fn config_key() -> String { "c".to_string() }
+fn help_key() -> String { "h".to_string() }
+fn statusbar_key() -> String { "b".to_string() }
+fn seed_key() -> String { "s".to_string() }
+fn color_cells() -> bool { true }
+fn seed() -> Option<String> { Some(String::new()) }
 
-impl Default for Config {
-    fn default() -> Self {
-        Self {
-            simulation: SimulationConfig::default(),
-            display: DisplayConfig::default(),
-            controls: ControlsConfig::default(),
-        }
-    }
-}
 
 impl Default for SimulationConfig {
     fn default() -> Self {
         Self {
-            default_heads: default_heads(),
-            default_rule: default_rule(),
-            default_speed_ms: default_speed(),
-            trail_length: default_trail_length(),
-            infinite_trail: default_infinite_trail(),
-            seed: default_seed(),
+            heads: heads(),
+            rule: rule(),
+            speed_ms: speed(),
+            trail_length: trail_length(),
+            color_cells: color_cells(),
+            seed: seed(),
         }
     }
 }
@@ -146,10 +144,12 @@ impl Default for SimulationConfig {
 impl Default for DisplayConfig {
     fn default() -> Self {
         let mut config = Self {
-            colors: default_colors(),
-            head_char: default_head_char(),
-            trail_char: default_trail_char(),
-            cell_char: default_cell_char(),
+            colors: colors(),
+            state_based_colors: state_based_colors(),
+            live_colors: live_colors(),
+            head_char: head_char(),
+            trail_char: trail_char(),
+            cell_char: cell_char(),
             head_char_data: Vec::new(),
             trail_char_data: Vec::new(),
             cell_char_data: CharData::new(""),
@@ -162,15 +162,15 @@ impl Default for DisplayConfig {
 impl Default for ControlsConfig {
     fn default() -> Self {
         Self {
-            quit: default_quit_key(),
-            toggle: default_toggle_key(),
-            reset: default_reset_key(),
-            faster: default_faster_key(),
-            slower: default_slower_key(),
-            config_reload: default_config_key(),
-            help: default_help_key(),
-            statusbar: default_statusbar_key(),
-            seed_toggle: default_seed_key(),
+            quit: quit_key(),
+            toggle: toggle_key(),
+            reset: reset_key(),
+            faster: faster_key(),
+            slower: slower_key(),
+            config_reload: config_key(),
+            help: help_key(),
+            statusbar: statusbar_key(),
+            seed_toggle: seed_key(),
         }
     }
 }
@@ -187,10 +187,64 @@ impl DisplayConfig {
             
         self.cell_char_data = CharData::new(&self.cell_char);
     }
+
+    pub fn get_cell_color(&self, cell_state: char, head_index: usize, config: &Config) -> Color {
+        if self.state_based_colors {
+            // State-based: colors[0] = A, colors[1] = B, etc.
+            let cell_index = (cell_state as u8).saturating_sub(b'A') as usize;
+            if !self.colors.is_empty() {
+                config.parse_color(&self.colors[cell_index % self.colors.len()])
+            } else {
+                Color::White
+            }
+        } else {
+            // Head-based
+            if !self.colors.is_empty() {
+                config.parse_color(&self.colors[head_index % self.colors.len()])
+            } else {
+                Color::White
+            }
+        }
+    }
+
+    pub fn should_render_cell(&self, cell_state: char) -> bool {
+        self.state_based_colors || cell_state != 'A'
+    }
+
+    pub fn get_head_color(&self, head_index: usize, config: &Config) -> Color {
+        if self.state_based_colors && !self.live_colors {
+            // Cycle through colors by head index
+            if !self.colors.is_empty() {
+                config.parse_color(&self.colors[head_index % self.colors.len()])
+            } else {
+                Color::White
+            }
+        } else if self.state_based_colors && self.live_colors {
+            if !self.colors.is_empty() {
+                config.parse_color(&self.colors[0])
+            } else {
+                Color::White
+            }
+        } else {
+            // Head-based
+            if !self.colors.is_empty() {
+                config.parse_color(&self.colors[head_index % self.colors.len()])
+            } else {
+                Color::White
+            }
+        }
+    }
+}
+
+pub enum ConfigLoadResult {
+    Success(Config),
+    ValidationErrors(Config, Vec<String>),
+    ParseError(Config, String),
+    IoError(Config, String),
 }
 
 impl Config {
-    pub fn load() -> Self {
+    pub fn load() -> ConfigLoadResult {
         let config_path = Self::config_dir().join("config.toml");
         
         if config_path.exists() {
@@ -198,34 +252,30 @@ impl Config {
                 Ok(content) => match toml::from_str::<Config>(&content) {
                     Ok(mut config) => {
                         if let Err(errors) = config.validate() {
-                            eprintln!("Config validation failed:");
-                            for error in errors {
-                                eprintln!("  {}", error);
-                            }
-                            eprintln!("Using default config instead.");
+                            ConfigLoadResult::ValidationErrors(Config::default(), errors)
                         } else {
                             config.display.cache_char_data();
-                            return config;
+                            ConfigLoadResult::Success(config)
                         }
                     },
-                    Err(e) => eprintln!("Failed to parse config: {}", e),
+                    Err(e) => ConfigLoadResult::ParseError(Config::default(), e.to_string()),
                 },
-                Err(e) => eprintln!("Failed to read config: {}", e),
+                Err(e) => ConfigLoadResult::IoError(Config::default(), e.to_string()),
             }
+        } else {
+            // Return default config and create example file
+            let default_config = Self::default();
+            let _ = default_config.create_example_config();
+            ConfigLoadResult::Success(default_config)
         }
-        
-        // Return default config and create example file
-        let default_config = Self::default();
-        let _ = default_config.create_example_config();
-        default_config
     }
 
     pub fn validate(&self) -> Result<(), Vec<String>> {
         let mut errors = Vec::new();
 
         // Validate rule string
-        if let Err(e) = self.validate_rule_string(&self.simulation.default_rule) {
-            errors.push(format!("simulation.default_rule: {}", e));
+        if let Err(e) = self.validate_rule_string(&self.simulation.rule) {
+            errors.push(format!("simulation.rule: {}", e));
         }
 
         // Validate colors
@@ -236,12 +286,12 @@ impl Config {
         }
 
         // Validate numeric ranges
-        if self.simulation.default_heads == 0 || self.simulation.default_heads > 256 {
-            errors.push("simulation.default_heads: must be between 1 and 256".to_string());
+        if self.simulation.heads == 0 || self.simulation.heads > 256 {
+            errors.push("simulation.heads: must be between 1 and 256".to_string());
         }
 
-        if self.simulation.default_speed_ms <= 0.0 {
-            errors.push("simulation.default_speed_ms: must be positive".to_string());
+        if self.simulation.speed_ms <= 0.0 {
+            errors.push("simulation.speed_ms: must be positive".to_string());
         }
 
         if self.simulation.trail_length == 0 {
@@ -298,7 +348,7 @@ impl Config {
             return Err("rule string cannot be empty".to_string());
         }
 
-        // Handle explicit state rules (contains commas)
+        // Handle explicit state rules
         if rule.contains(',') {
             let combinations: Vec<&str> = rule.split(',').collect();
             for combo in combinations {
