@@ -18,7 +18,8 @@
 ### About
 **trmt** can simulate multiple turmites simultaneously with customizable rules, colors, and characters, and has support for both [relative and absolute](https://en.wikipedia.org/wiki/Turmite#Relative_vs._absolute_turmites) turmites.
 
-Running **trmt** will start a simulation with the [default config](#configuration). 
+Running **trmt** will start a simulation with the [default config](#configuration).
+
 <br>
 
 ### Features
@@ -33,7 +34,6 @@ Running **trmt** will start a simulation with the [default config](#configuratio
 
 ### Installation
 **trmt** only requires [Rust with Cargo](https://www.rust-lang.org/learn/get-started) as a prerequisite.
-
 
 **From crates.io**
 ```bash
@@ -54,7 +54,6 @@ Simply run `trmt` in your terminal to start a simulation.
 ```bash
 trmt
 ```
-<br>
 
 #### Controls
 **trmt** has controls that can be used while the simulation is running. Keybinds can all be customized through the config file, but the defaults are:
@@ -120,9 +119,6 @@ seed_toggle = "s"                   # Toggle seed
 <br>
 
 #### Rules
-> [!NOTE]  
-> A wiki containing a more in-depth guide to the syntax and rule formats will be added to a wiki.
-
 Rules in **trmt** are what defines how the simulation will play out, and how the heads will behave. **trmt** provides you with tools to simulate everything from very basic sequential rules, all the way up to academic-level notation *(don't quote me on this)*.
 
 A rule consists of several states, and a state holds specific instructions on how a head should move when encountered. You can theoretically have several hundred states in a rule, but many of the most interesting patterns will appear with just 3-5 states.
@@ -162,6 +158,7 @@ rule = "L1>1,L1>1:R1>1,D0>0"
 Which constructs a [Fibonacci spiral](https://en.wikipedia.org/wiki/Turmite#/media/File:Turmite-181181121010-10211.svg).
 
 When building new rules, it is recommended to use `1` head for testing to make the simulation less chaotic.
+
 <br>
 
 ### Planned
@@ -173,6 +170,11 @@ When building new rules, it is recommended to use `1` head for testing to make t
 - [ ] Toggleable random characters for both heads and trails
 - [ ] Support for 32-bit colors
 - [ ] Proper wiki/documentation
+<br>
+
+### Acknowledgements
+A big thanks to [Raphael Rau](https://silverwing-vfx.de) for letting me use his [SLV Console render](https://www.behance.net/gallery/190984217/SLV-Console-%28CGI%29) as the background for the demo gif.
+
 <br>
 
 ### Contributing
@@ -188,4 +190,3 @@ You are very welcome to contribute to the project, be that through feature reque
 8. Open a Pull Request
 
 **Found a bug?** Open an [issue](https://github.com/cenonym/trmt/issues) with details and steps to reproduce. **Questions or suggestions?** Let's [discuss](https://github.com/cenonym/trmt/discussions) them.
-<br>
