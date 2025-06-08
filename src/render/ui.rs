@@ -4,9 +4,9 @@ use ratatui::{
     widgets::{Block, Borders, Paragraph, Clear, Wrap},
     text::{Line, Span},
     symbols::border,
+    Frame,
 };
-use std::time::Duration;
-use crate::{machine::TuringMachine, config::Config};
+use super::App;
 
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub enum PopupPosition {
@@ -91,81 +91,7 @@ impl PopupConfig {
     }
 }
 
-pub struct App {
-    pub machine: TuringMachine,
-    pub last_step: std::time::Instant,
-    pub step_interval: Duration,
-    pub config: Config,
-    pub show_help: bool,
-    pub show_statusbar: bool,
-    pub error_message: Option<String>,
-}
-
-impl App {
-    pub fn new(config: Config) -> Self {
-        Self {
-            machine: TuringMachine::new(
-                config.simulation.heads,
-                &config.simulation.rule,
-                &config
-            ),
-            last_step: std::time::Instant::now(),
-            step_interval: Duration::from_nanos((config.simulation.speed_ms * 1_000_000.0) as u64),
-            config,
-            show_help: false,
-            show_statusbar: false,
-            error_message: None,
-        }
-    }
-
-    pub fn show_error(&mut self, message: String) {
-        self.error_message = Some(message);
-    }
-
-    pub fn clear_overlays(&mut self) {
-        self.show_help = false;
-        self.show_statusbar = false;
-        self.error_message = None;
-    }
-
-    pub fn update(&mut self, width: i32, height: i32) {
-        if self.machine.running && self.last_step.elapsed() >= self.step_interval {
-            let steps_per_frame = if self.step_interval < Duration::from_millis(16) {
-                (Duration::from_millis(16).as_nanos() / self.step_interval.as_nanos().max(1)) as usize
-            } else {
-                1
-            };
-            
-            for _ in 0..steps_per_frame.min(100) {
-                self.machine.step(width, height, &self.config);
-            }
-            
-            self.machine.mark_trail_dirty();
-            self.last_step = std::time::Instant::now();
-        }
-    }
-}
-
-pub fn ui(f: &mut ratatui::Frame, app: &mut App) {
-    render_pixel_grid(f, app, f.area());
-
-    // Render overlays
-    if let Some(ref error) = app.error_message {
-        render_error_overlay(f, app, error);
-    } else if app.show_statusbar {
-        render_statusbar_overlay(f, app);
-    } else if app.show_help {
-        render_help_overlay(f, app);
-    }
-    
-    app.machine.clear_dirty_cells();
-}
-
-pub fn render_enhanced_popup(
-    f: &mut ratatui::Frame,
-    content: Vec<Line>,
-    config: PopupConfig,
-) {
+pub fn render_enhanced_popup(f: &mut Frame, content: Vec<Line>, config: PopupConfig) {
     let area = f.area();
     
     // Calculate dimensions
@@ -224,9 +150,9 @@ pub fn render_enhanced_popup(
     // Content area
     let content_area = Rect {
         x: popup_area.x + 2,
-        y: popup_area.y + 1 + config.padding, // border + top padding
-        width: popup_area.width.saturating_sub(4), // subtract left+right padding
-        height: popup_area.height.saturating_sub(2 + config.padding), // subtract borders + top padding
+        y: popup_area.y + 1 + config.padding,
+        width: popup_area.width.saturating_sub(4),
+        height: popup_area.height.saturating_sub(2 + config.padding),
     };
 
     // Render background
@@ -293,7 +219,7 @@ fn bottom_rect_fixed_size(width: u16, height: u16, r: Rect) -> Rect {
         .split(popup_layout[1])[1]
 }
 
-fn render_error_overlay(f: &mut ratatui::Frame, _app: &App, error_message: &str) {
+pub fn render_error_overlay(f: &mut Frame, _app: &App, error_message: &str) {
     let mut error_text = vec![];
     
     for line in error_message.lines() {
@@ -312,7 +238,7 @@ fn render_error_overlay(f: &mut ratatui::Frame, _app: &App, error_message: &str)
     render_enhanced_popup(f, error_text, PopupConfig::error());
 }
 
-fn render_help_overlay(f: &mut ratatui::Frame, app: &App) {
+pub fn render_help_overlay(f: &mut Frame, app: &App) {
     let help_text = vec![
         Line::from(vec![Span::styled("Controls", Style::default().add_modifier(Modifier::BOLD))]),
         Line::from(""),
@@ -338,8 +264,8 @@ fn render_help_overlay(f: &mut ratatui::Frame, app: &App) {
     render_enhanced_popup(f, help_text, PopupConfig::help());
 }
 
-fn render_statusbar_overlay(f: &mut ratatui::Frame, app: &App) {
-    let speed_ms = if app.step_interval >= Duration::from_millis(1) {
+pub fn render_statusbar_overlay(f: &mut Frame, app: &App) {
+    let speed_ms = if app.step_interval >= std::time::Duration::from_millis(1) {
         app.step_interval.as_millis() as f64
     } else {
         app.step_interval.as_nanos() as f64 / 1_000_000.0
@@ -365,121 +291,4 @@ fn render_statusbar_overlay(f: &mut ratatui::Frame, app: &App) {
 
     let content = vec![Line::from(status_text)];
     render_enhanced_popup(f, content, PopupConfig::statusbar());
-}
-
-#[inline(always)]
-fn wrap_coords(x: i32, y: i32, width: i32, height: i32) -> (i32, i32) {
-    (((x % width) + width) % width, ((y % height) + height) % height)
-}
-
-fn render_pixel_grid(f: &mut ratatui::Frame, app: &App, area: Rect) {
-    let width = area.width as i32 / 2;
-    let height = area.height as i32;
-
-    // Get cached character data
-    let cell_char_data = &app.config.display.cell_char_data;
-
-    // Render tape cells
-    if app.config.simulation.color_cells {
-        for (&(x, y), &state) in app.machine.tape() {
-            if app.config.display.should_render_cell(state) {
-                let (grid_x, grid_y) = wrap_coords(x, y, width, height);
-                let buffer_x = area.x + (grid_x * 2) as u16;
-                let buffer_y = area.y + grid_y as u16;
-                
-                let color = app.machine.tape_colors().get(&(x, y)).copied().unwrap_or(Color::White);
-                
-                // Use cached character data
-                for (i, &ch) in cell_char_data.chars.iter().enumerate() {
-                    let char_x = buffer_x + i as u16;
-                    if char_x < area.x + area.width && buffer_y < area.y + area.height {
-                        f.buffer_mut()[(char_x, buffer_y)].set_char(ch).set_fg(color);
-                    }
-                }
-            }
-        }
-    }
-
-    // Render head trails
-    for (head_index, head) in app.machine.heads.iter().enumerate() {
-        for (trail_index, &(trail_x, trail_y)) in head.trail.iter().rev().enumerate() {
-            let (grid_x, grid_y) = wrap_coords(trail_x, trail_y, width, height);
-            let buffer_x = area.x + (grid_x * 2) as u16;
-            let buffer_y = area.y + grid_y as u16;
-            
-            // Map trail position to character array
-            let char_index = if app.config.display.randomize_trails {
-                let hash = (app.machine.steps.wrapping_mul(37 + trail_index as u64 * 23 + head_index as u64 * 41)) as usize;
-                hash % app.config.display.trail_char_data.len()
-            } else if trail_index < app.config.display.trail_char_data.len() {
-                trail_index
-            } else {
-                app.config.display.trail_char_data.len() - 1
-            };
-            let trail_char_data = &app.config.display.trail_char_data[char_index];
-            
-            // Use cached character data
-            if trail_char_data.is_single_char {
-                if buffer_x < area.x + area.width && buffer_y < area.y + area.height {
-                    f.buffer_mut()[(buffer_x, buffer_y)].set_char(' ');
-                }
-                let char_x = buffer_x + 1;
-                if char_x < area.x + area.width && buffer_y < area.y + area.height {
-                    f.buffer_mut()[(char_x, buffer_y)].set_char(' ');
-                }
-                // Place character at position 0
-                if buffer_x < area.x + area.width && buffer_y < area.y + area.height {
-                    f.buffer_mut()[(buffer_x, buffer_y)].set_char(trail_char_data.chars[0]).set_fg(head.color);
-                }
-            } else {
-                // Render all characters for multi-char strings
-                for (i, &ch) in trail_char_data.chars.iter().enumerate() {
-                    let char_x = buffer_x + i as u16;
-                    if char_x < area.x + area.width && buffer_y < area.y + area.height {
-                        f.buffer_mut()[(char_x, buffer_y)].set_char(ch).set_fg(head.color);
-                    }
-                }
-            }
-        }
-    }
-
-    // Render head positions
-    for (head_index, head) in app.machine.heads.iter().enumerate() {
-        let (grid_x, grid_y) = wrap_coords(head.x, head.y, width, height);
-        let buffer_x = area.x + (grid_x * 2) as u16;
-        let buffer_y = area.y + grid_y as u16;
-        
-        // Cycle through head characters per step
-        let char_index = if app.config.display.randomize_heads {
-            let multiplier = 31 + head_index as u64 * 17; // Different per head
-            let hash = (app.machine.steps.wrapping_mul(multiplier)) as usize;
-            hash % app.config.display.head_char_data.len()
-        } else {
-            (app.machine.steps as usize) % app.config.display.head_char_data.len()
-        };
-        let head_char_data = &app.config.display.head_char_data[char_index];
-        
-        // Use cached character data
-        if head_char_data.is_single_char {
-            if buffer_x < area.x + area.width && buffer_y < area.y + area.height {
-                f.buffer_mut()[(buffer_x, buffer_y)].set_char(' ');
-            }
-            let char_x = buffer_x + 1;
-            if char_x < area.x + area.width && buffer_y < area.y + area.height {
-                f.buffer_mut()[(char_x, buffer_y)].set_char(' ');
-            }
-            // Place character at position 0
-            if buffer_x < area.x + area.width && buffer_y < area.y + area.height {
-                f.buffer_mut()[(buffer_x, buffer_y)].set_char(head_char_data.chars[0]).set_fg(head.color);
-            }
-        } else {
-            // Render all characters for multi-char strings
-            for (i, &ch) in head_char_data.chars.iter().enumerate() {
-                let char_x = buffer_x + i as u16;
-                if char_x < area.x + area.width && buffer_y < area.y + area.height {
-                    f.buffer_mut()[(char_x, buffer_y)].set_char(ch).set_fg(head.color);
-                }
-            }
-        }
-    }
 }

@@ -33,6 +33,8 @@ pub struct SimulationConfig {
 pub struct DisplayConfig {
     #[serde(default = "colors")]
     pub colors: Vec<String>,
+    #[serde(default = "fade_trail_color")]
+    pub fade_trail_color: String,
     #[serde(default = "state_based_colors")]
     pub state_based_colors: bool,
     #[serde(default = "live_colors")]
@@ -121,6 +123,7 @@ fn trail_char() -> Vec<String> {
 fn cell_char() -> String { "░░".to_string() }
 fn randomize_heads() -> bool { false }
 fn randomize_trails() -> bool { false }
+fn fade_trail_color() -> String { String::new() }
 fn quit_key() -> String { "q".to_string() }
 fn toggle_key() -> String { " ".to_string() }
 fn reset_key() -> String { "r".to_string() }
@@ -151,6 +154,7 @@ impl Default for DisplayConfig {
     fn default() -> Self {
         let mut config = Self {
             colors: colors(),
+            fade_trail_color: fade_trail_color(),
             state_based_colors: state_based_colors(),
             live_colors: live_colors(),
             head_char: head_char(),
@@ -198,7 +202,7 @@ impl DisplayConfig {
 
     pub fn get_cell_color(&self, cell_state: char, head_index: usize, config: &Config) -> Color {
         if self.state_based_colors {
-            // State-based: colors[0] = A, colors[1] = B, etc.
+            // Map colors to states
             let cell_index = (cell_state as u8).saturating_sub(b'A') as usize;
             if !self.colors.is_empty() {
                 config.parse_color(&self.colors[cell_index % self.colors.len()])
@@ -206,7 +210,7 @@ impl DisplayConfig {
                 Color::White
             }
         } else {
-            // Head-based
+            // Map colors to heads
             if !self.colors.is_empty() {
                 config.parse_color(&self.colors[head_index % self.colors.len()])
             } else {
