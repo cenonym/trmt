@@ -6,7 +6,8 @@
     <a href="https://crates.io/crates/trmt"><img alt="crates.io" src="https://img.shields.io/crates/v/trmt?color=%23f17136"></a>
     <a href="https://github.com/cenonym/trmt/blob/main/LICENSE"><img alt="License" src="https://img.shields.io/badge/License-GPLv3-%23f17136.svg"></a>
     <br>
-    <br>
+    <a href="#installation">Installation</a> | <a href="/examples">Examples</a>
+    <br><br>
     <img src="/trmt_demo.gif" alt="trmt demo">
     <p>
         Demo background by <a href="https://silverwing-vfx.de">Raphael Rau</a>
@@ -23,10 +24,11 @@ Running **trmt** will start a simulation with the [default config](#configuratio
 <br>
 
 ### Features
+- Full Unicode support
 - Up to 256 simultaneous heads
 - Full color support: 16-color, 256-color, and RGB/hex
 - Deterministic seed-based simulation for reproducible patterns
-- Highly configurable display, controls, and simulation parameters
+- Highly configurable simulation, display and control parameters
 - Several rule formats for various degrees of complexity
 - Real-time interaction with configurable keybinds
 - Toroidal grid with seamless wrapping
@@ -43,9 +45,7 @@ cargo install trmt
 
 **Install from source**
 ```bash
-git clone https://github.com/cenonym/trmt
-cd trmt
-cargo install --path .
+cargo install --git https://github.com/cenonym/trmt
 ```
 <br>
 
@@ -54,6 +54,10 @@ Simply run `trmt` in your terminal to start a simulation.
 ```bash
 trmt
 ```
+
+#### Examples
+Check out the [examples](/examples) to see what's possible.
+<br>
 
 #### Controls
 **trmt** has controls that can be used while the simulation is running. Keybinds can all be customized through the config file, but the defaults are:
@@ -80,7 +84,7 @@ trmt
 - **Windows:** `%APPDATA%\trmt\config.toml`
 <br>
 
-#### Example config
+#### Config options
 ```toml
 [simulation]
 heads = 3                           # Number of heads on initialization
@@ -88,7 +92,7 @@ rule = "RL"                         # Rules for the simulation
 speed_ms = 20                       # Simulation speed in milliseconds
 trail_length = 24                   # Number of trail characters following the head
 color_cells = true                  # If true, leaves behind an infinite trail of colored cell chars
-seed = ""                           # Empty = random
+seed = ""                           # Seed stores initial position and direction of the heads. Empty = random
 
 [display]
 colors = [                          # Array of colors mapped to number of heads sequentially, using hex, RGB or 256-colors.
@@ -96,11 +100,14 @@ colors = [                          # Array of colors mapped to number of heads 
     "#45a8e9",
     "229",
 ]
+fade_trail_color = ""               # Creates gradient trail from head color to this. Set to terminal bg color to fade out. Empty = no gradient
 state_based_colors = false          # Printed cells use color config per state
 live_colors = false                 # Heads change color with state, only works with state_based_colors = true
-head_char = ["██"]                  # Array of head characters, trmt will cycle through it sequentially per step
+head_char = ["██"]                  # Array of head characters, cycles through it sequentially per step
 trail_char = ["▓▓"]                 # Array of trail characters, where first character is mapped to first trail, and so on
 cell_char = "░░"                    # The characters left behind the trail when color_cells = true
+randomize_heads = false             # Randomize head character in head_char array
+randomize_trails = false            # Randomize trail characters in trail_char array
 
 [controls]
 quit = "q"                          # Quit
@@ -113,8 +120,6 @@ help = "h"                          # Toggle help overlay
 statusbar = "b"                     # Toggle statusbar overlay
 seed_toggle = "s"                   # Toggle seed
 ```
-> [!TIP]  
-> The seed stores initial position and direction of the heads.
 
 <br>
 
@@ -155,25 +160,28 @@ This lets us translate a traditional turmite notation like `{{{1, 8, 1}, {1, 8, 
 ```toml
 rule = "L1>1,L1>1:R1>1,D0>0"
 ```
-Which constructs a [Fibonacci spiral](https://en.wikipedia.org/wiki/Turmite#/media/File:Turmite-181181121010-10211.svg).
+Which constructs a [Fibonacci spiral](https://commons.wikimedia.org/wiki/File:Turmite-181181121010-10211.png).
 
 When building new rules, it is recommended to use `1` head for testing to make the simulation less chaotic.
 
 <br>
 
 ### Planned
-- [x] ~~Improved error handling and printing~~
-- [x] ~~Redesign help and statusbar TUI~~
-- [x] ~~Per-state color customization~~
+- [x] Improved error handling and printing - Added in [v0.3.0](https://github.com/cenonym/trmt/releases/tag/v0.3.0)
+- [x] Redesign help and statusbar TUI - Added in [v0.3.0](https://github.com/cenonym/trmt/releases/tag/v0.3.0)
+- [x] Per-state color customization - Added in [v0.3.0](https://github.com/cenonym/trmt/releases/tag/v0.3.0)
+- [x] Toggleable random characters for both heads and trails - Added in [v0.4.0](https://github.com/cenonym/trmt/releases/tag/v0.4.0)
+- [x] Gradient trails - Added in [v0.4.0](https://github.com/cenonym/trmt/releases/tag/v0.4.0)
 - [ ] Clean up reset and config reload functions
 - [ ] Customizable initial head direction
-- [ ] Toggleable random characters for both heads and trails
-- [ ] Support for 32-bit colors
 - [ ] Proper wiki/documentation
 <br>
 
 ### Acknowledgements
-A big thanks to [Raphael Rau](https://silverwing-vfx.de) for letting me use his [SLV Console render](https://www.behance.net/gallery/190984217/SLV-Console-%28CGI%29) as the background for the demo gif.
+A big thanks to:
+- [Raphael Rau](https://silverwing-vfx.de) for letting me use his [SLV Console render](https://www.behance.net/gallery/190984217/SLV-Console-%28CGI%29) as the background for the demo gif.
+- Developers of [cmatrix](https://github.com/abishekvashok/cmatrix), [pipes.sh](https://github.com/pipeseroni/pipes.sh), [asciiquarium](https://github.com/cmatsuoka/asciiquarium) and the like for inspiring the creation of **trmt**.
+- [Ferkel](https://commons.wikimedia.org/wiki/User:Ferkel) on Wikipedia for [turmite rule notations](https://commons.wikimedia.org/wiki/File:Turmite-181181121010-10211.png) used in testing and development of the **trmt** rule syntax.
 
 <br>
 
