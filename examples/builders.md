@@ -13,7 +13,7 @@ seed = ""
 
 [display]
 colors = ["rgb(241, 113, 54)","#45a8e9","229"]
-fade_trail_color = "#181818" # This has to be the bg color of your terminal for the trails 
+fade_trail_color = "#181818" # Set to bg color of your terminal for the trails to fade out 
 state_based_colors = false
 live_colors = false
 randomize_heads = false

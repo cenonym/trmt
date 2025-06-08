@@ -14,7 +14,7 @@ seed = ""
 
 [display]
 colors = ["#00ff41", "#008f11", "#004400", "#002200"]
-fade_trail_color = "#181818" # This has to be the bg color of your terminal for the trails to fade out
+fade_trail_color = "#181818" # Set to bg color of your terminal for the trails to fade out
 state_based_colors = false
 head_char = ["ﾊ", "ﾐ", "ﾋ", "ｰ", "ｳ", "ｼ", "ﾅ", "ﾓ", "ﾆ", "ｻ"]
 trail_char = ["ｦ","ｧ","ｨ","ｩ","ｪ","ｫ","ｬ","ｭ","ｮ","ｯ","ｰ","ｱ","ｲ","ｳ","ｴ","ｵ","ｶ","ｷ","ｸ","ｹ","ｺ","ｻ","ｼ","･","･"]
