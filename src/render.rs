@@ -401,17 +401,20 @@ fn render_pixel_grid(f: &mut ratatui::Frame, app: &App, area: Rect) {
     }
 
     // Render head trails
-    for head in &app.machine.heads {
+    for (head_index, head) in app.machine.heads.iter().enumerate() {
         for (trail_index, &(trail_x, trail_y)) in head.trail.iter().rev().enumerate() {
             let (grid_x, grid_y) = wrap_coords(trail_x, trail_y, width, height);
             let buffer_x = area.x + (grid_x * 2) as u16;
             let buffer_y = area.y + grid_y as u16;
             
             // Map trail position to character array
-            let char_index = if trail_index < app.config.display.trail_char_data.len() {
+            let char_index = if app.config.display.randomize_trails {
+                let hash = (app.machine.steps.wrapping_mul(37 + trail_index as u64 * 23 + head_index as u64 * 41)) as usize;
+                hash % app.config.display.trail_char_data.len()
+            } else if trail_index < app.config.display.trail_char_data.len() {
                 trail_index
             } else {
-                app.config.display.trail_char_data.len() - 1 // Repeat last character
+                app.config.display.trail_char_data.len() - 1
             };
             let trail_char_data = &app.config.display.trail_char_data[char_index];
             
@@ -441,13 +444,19 @@ fn render_pixel_grid(f: &mut ratatui::Frame, app: &App, area: Rect) {
     }
 
     // Render head positions
-    for head in &app.machine.heads {
+    for (head_index, head) in app.machine.heads.iter().enumerate() {
         let (grid_x, grid_y) = wrap_coords(head.x, head.y, width, height);
         let buffer_x = area.x + (grid_x * 2) as u16;
         let buffer_y = area.y + grid_y as u16;
         
         // Cycle through head characters per step
-        let char_index = (app.machine.steps as usize) % app.config.display.head_char_data.len();
+        let char_index = if app.config.display.randomize_heads {
+            let multiplier = 31 + head_index as u64 * 17; // Different per head
+            let hash = (app.machine.steps.wrapping_mul(multiplier)) as usize;
+            hash % app.config.display.head_char_data.len()
+        } else {
+            (app.machine.steps as usize) % app.config.display.head_char_data.len()
+        };
         let head_char_data = &app.config.display.head_char_data[char_index];
         
         // Use cached character data

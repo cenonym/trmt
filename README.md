@@ -98,9 +98,11 @@ colors = [                          # Array of colors mapped to number of heads 
 ]
 state_based_colors = false          # Printed cells use color config per state
 live_colors = false                 # Heads change color with state, only works with state_based_colors = true
-head_char = ["██"]                  # Array of head characters, trmt will cycle through it sequentially per step
+head_char = ["██"]                  # Array of head characters, cycles through it sequentially per step
 trail_char = ["▓▓"]                 # Array of trail characters, where first character is mapped to first trail, and so on
 cell_char = "░░"                    # The characters left behind the trail when color_cells = true
+randomize_heads = false             # Randomize head character based on head_char array
+randomize_trails = false            # Randomize trail character based on trail_char
 
 [controls]
 quit = "q"                          # Quit
@@ -155,25 +157,28 @@ This lets us translate a traditional turmite notation like `{{{1, 8, 1}, {1, 8, 
 ```toml
 rule = "L1>1,L1>1:R1>1,D0>0"
 ```
-Which constructs a [Fibonacci spiral](https://en.wikipedia.org/wiki/Turmite#/media/File:Turmite-181181121010-10211.svg).
+Which constructs a [Fibonacci spiral](https://commons.wikimedia.org/wiki/File:Turmite-181181121010-10211.png).
 
 When building new rules, it is recommended to use `1` head for testing to make the simulation less chaotic.
 
 <br>
 
 ### Planned
-- [x] ~~Improved error handling and printing~~
-- [x] ~~Redesign help and statusbar TUI~~
-- [x] ~~Per-state color customization~~
+- [x] ~~Improved error handling and printing~~ Added in [v0.3.0](https://github.com/cenonym/trmt/releases/tag/v0.3.0)
+- [x] ~~Redesign help and statusbar TUI~~ Added in [v0.3.0](https://github.com/cenonym/trmt/releases/tag/v0.3.0)
+- [x] ~~Per-state color customization~~ Added in [v0.3.0](https://github.com/cenonym/trmt/releases/tag/v0.3.0)
+- [x] ~~Toggleable random characters for both heads and trails~~ Added in [v0.4.0](https://github.com/cenonym/trmt/releases/tag/v0.3.0)
 - [ ] Clean up reset and config reload functions
 - [ ] Customizable initial head direction
-- [ ] Toggleable random characters for both heads and trails
 - [ ] Support for 32-bit colors
 - [ ] Proper wiki/documentation
 <br>
 
 ### Acknowledgements
-A big thanks to [Raphael Rau](https://silverwing-vfx.de) for letting me use his [SLV Console render](https://www.behance.net/gallery/190984217/SLV-Console-%28CGI%29) as the background for the demo gif.
+A big thanks to :
+- [Raphael Rau](https://silverwing-vfx.de) for letting me use his [SLV Console render](https://www.behance.net/gallery/190984217/SLV-Console-%28CGI%29) as the background for the demo gif.
+- Developers of [cmatrix](https://github.com/abishekvashok/cmatrix), [pipes.sh](https://github.com/pipeseroni/pipes.sh), [asciiquarium](https://github.com/cmatsuoka/asciiquarium) and the like for inspiring the creation of **trmt**.
+- [Ferkel](https://commons.wikimedia.org/wiki/User:Ferkel) on Wikipedia for [turmite rule notations](https://commons.wikimedia.org/wiki/File:Turmite-181181121010-10211.png) used in testing and development of the **trmt** rule syntax.
 
 <br>
 

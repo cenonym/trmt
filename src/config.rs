@@ -37,6 +37,10 @@ pub struct DisplayConfig {
     pub state_based_colors: bool,
     #[serde(default = "live_colors")]
     pub live_colors: bool,
+    #[serde(default = "randomize_heads")]
+    pub randomize_heads: bool,
+    #[serde(default = "randomize_trails")]
+    pub randomize_trails: bool,
     #[serde(default = "head_char")]
     pub head_char: Vec<String>,
     #[serde(default = "trail_char")]
@@ -115,6 +119,8 @@ fn trail_char() -> Vec<String> {
     vec!["▓▓".to_string()] 
 }
 fn cell_char() -> String { "░░".to_string() }
+fn randomize_heads() -> bool { false }
+fn randomize_trails() -> bool { false }
 fn quit_key() -> String { "q".to_string() }
 fn toggle_key() -> String { " ".to_string() }
 fn reset_key() -> String { "r".to_string() }
@@ -150,6 +156,8 @@ impl Default for DisplayConfig {
             head_char: head_char(),
             trail_char: trail_char(),
             cell_char: cell_char(),
+            randomize_heads: randomize_heads(),
+            randomize_trails: randomize_trails(),
             head_char_data: Vec::new(),
             trail_char_data: Vec::new(),
             cell_char_data: CharData::new(""),
