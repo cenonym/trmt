@@ -685,7 +685,7 @@ checksum = "bfb942dfe1d8e29a7ee7fcbde5bd2b9a25fb89aa70caea2eba3bee836ff41076"
 
 [[package]]
 name = "trmt"
-version = "0.4.0"
+version = "0.4.1"
 dependencies = [
  "crossterm 0.27.0",
  "dirs",
