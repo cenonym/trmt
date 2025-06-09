@@ -48,8 +48,8 @@ fn render_trails(f: &mut Frame, app: &App, area: Rect, width: i32, height: i32) 
             let buffer_y = area.y + grid_y as u16;
             
             let char_index = if app.config.display.randomize_trails {
-                let hash = (app.machine.steps.wrapping_mul(101 + trail_index as u64 * 103 + head_index as u64 * 107)) as usize;
-                hash % app.config.display.trail_char_data.len()
+                let random_index = app.machine.get_trail_char_index(head_index, trail_index);
+                random_index % app.config.display.trail_char_data.len()
             } else if trail_index < app.config.display.trail_char_data.len() {
                 trail_index
             } else {
@@ -77,7 +77,7 @@ fn render_heads(f: &mut Frame, app: &App, area: Rect, width: i32, height: i32) {
         let buffer_x = area.x + (grid_x * 2) as u16;
         let buffer_y = area.y + grid_y as u16;
         
-        // Force clear both positions first (fix for wide characters)
+        // Force clear both positions
         for i in 0..2 {
             let char_x = buffer_x + i as u16;
             if char_x < area.x + area.width && buffer_y < area.y + area.height {
@@ -86,9 +86,8 @@ fn render_heads(f: &mut Frame, app: &App, area: Rect, width: i32, height: i32) {
         }
         
         let char_index = if app.config.display.randomize_heads {
-            let multiplier = 109 + head_index as u64 * 113;
-            let hash = (app.machine.steps.wrapping_mul(multiplier)) as usize;
-            hash % app.config.display.head_char_data.len()
+            let random_index = app.machine.get_head_char_index(head_index);
+            random_index % app.config.display.head_char_data.len()
         } else {
             (app.machine.steps as usize) % app.config.display.head_char_data.len()
         };

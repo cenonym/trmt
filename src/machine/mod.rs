@@ -27,10 +27,15 @@ pub struct TuringMachine {
     cached_parsed_colors: FxHashMap<String, Color>,
     updates_buffer: Vec<(usize, char, TurnDirection, usize, i32, i32, Color)>,
     pub dirty_cells: FxHashSet<(i32, i32)>,
+    head_char_sequence: Vec<usize>,
+    trail_char_sequence: Vec<usize>,
+    sequence_length: usize,
 }
 
 impl TuringMachine {
     pub fn new(num_heads: usize, rule_string: &str, config: &Config) -> Self {
+        let sequence_length = 10000;
+        
         let mut machine = Self {
             grid: Grid::new(),
             heads: Vec::with_capacity(num_heads.min(256)),
@@ -44,6 +49,9 @@ impl TuringMachine {
             cached_parsed_colors: FxHashMap::default(),
             updates_buffer: Vec::with_capacity(256),
             dirty_cells: FxHashSet::with_capacity_and_hasher(1024, Default::default()),
+            head_char_sequence: Vec::with_capacity(sequence_length),
+            trail_char_sequence: Vec::with_capacity(sequence_length),
+            sequence_length,
         };
 
         machine.update_colors(config);
@@ -52,24 +60,28 @@ impl TuringMachine {
         machine
     }
 
-    pub fn update_colors(&mut self, config: &Config) {
-        self.colors = config.display.colors.iter()
-            .map(|c| self.parse_color_cached(c, config))
+    // Pre-generate char sequences
+    fn generate_random_sequences(&mut self, config: &Config) {
+        let seed = if let Some(config_seed) = &config.simulation.seed {
+            if !config_seed.is_empty() {
+                config_seed.clone()
+            } else {
+                self.generate_random_seed()
+            }
+        } else {
+            self.generate_random_seed()
+        };
+        
+        let seed_hash = self.hash_seed(&seed);
+        let mut rng = StdRng::seed_from_u64(seed_hash.wrapping_add(12345));
+        
+        self.head_char_sequence = (0..self.sequence_length)
+            .map(|_| rng.gen_range(0..usize::MAX))
             .collect();
-        
-        for (i, head) in self.heads.iter_mut().enumerate() {
-            head.color = config.display.get_head_color(i, config);
-        }
-    }
-
-    fn parse_color_cached(&mut self, color_str: &str, config: &Config) -> Color {
-        if let Some(&cached_color) = self.cached_parsed_colors.get(color_str) {
-            return cached_color;
-        }
-        
-        let color = config.parse_color(color_str);
-        self.cached_parsed_colors.insert(color_str.to_string(), color);
-        color
+            
+        self.trail_char_sequence = (0..self.sequence_length)
+            .map(|_| rng.gen_range(0..usize::MAX))
+            .collect();
     }
 
     fn spawn_heads(&mut self, config: &Config) {
@@ -94,12 +106,41 @@ impl TuringMachine {
             let x = rng.gen_range(0..100);
             let y = rng.gen_range(0..100);
             let mut head = Head::new(x, y, Color::White);
-            
-            // Set proper color using head index
             head.color = config.display.get_head_color(i, config);
-            
             self.heads.push(head);
         }
+        
+        self.generate_random_sequences(config);
+    }
+
+    pub fn get_head_char_index(&self, head_index: usize) -> usize {
+        let sequence_index = (self.steps.wrapping_add(head_index as u64)) as usize % self.sequence_length;
+        self.head_char_sequence[sequence_index]
+    }
+    
+    pub fn get_trail_char_index(&self, head_index: usize, trail_index: usize) -> usize {
+        let sequence_index = (self.steps.wrapping_add(head_index as u64).wrapping_add(trail_index as u64 * 17)) as usize % self.sequence_length;
+        self.trail_char_sequence[sequence_index]
+    }
+
+    pub fn update_colors(&mut self, config: &Config) {
+        self.colors = config.display.colors.iter()
+            .map(|c| self.parse_color_cached(c, config))
+            .collect();
+        
+        for (i, head) in self.heads.iter_mut().enumerate() {
+            head.color = config.display.get_head_color(i, config);
+        }
+    }
+
+    fn parse_color_cached(&mut self, color_str: &str, config: &Config) -> Color {
+        if let Some(&cached_color) = self.cached_parsed_colors.get(color_str) {
+            return cached_color;
+        }
+        
+        let color = config.parse_color(color_str);
+        self.cached_parsed_colors.insert(color_str.to_string(), color);
+        color
     }
 
     fn generate_random_seed(&self) -> String {
