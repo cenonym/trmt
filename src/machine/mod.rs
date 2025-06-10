@@ -23,6 +23,8 @@ pub struct TuringMachine {
     pub running: bool,
     pub steps: u64,
     pub current_seed: String,
+    pub grid_width: i32,
+    pub grid_height: i32,
     colors: Vec<Color>,
     cached_parsed_colors: FxHashMap<String, Color>,
     updates_buffer: Vec<(usize, char, TurnDirection, usize, i32, i32, Color)>,
@@ -45,6 +47,8 @@ impl TuringMachine {
             running: true,
             steps: 0,
             current_seed: String::new(),
+            grid_width: 100,
+            grid_height: 100,
             colors: Vec::new(),
             cached_parsed_colors: FxHashMap::default(),
             updates_buffer: Vec::with_capacity(256),
@@ -103,8 +107,8 @@ impl TuringMachine {
         let mut rng = StdRng::seed_from_u64(seed_hash);
 
         for i in 0..self.num_heads {
-            let x = rng.gen_range(0..100);
-            let y = rng.gen_range(0..100);
+            let x = rng.gen_range(0..self.grid_width.max(1));
+            let y = rng.gen_range(0..self.grid_height.max(1));
             let mut head = Head::new(x, y, Color::White);
             head.color = config.display.get_head_color(i, config);
             self.heads.push(head);
@@ -252,6 +256,16 @@ impl TuringMachine {
     pub fn set_head_count(&mut self, count: usize, config: &Config) {
         self.num_heads = count.min(256);
         self.spawn_heads(config);
+    }
+
+    pub fn update_grid_dimensions(&mut self, width: i32, height: i32) {
+        if self.grid_width != width || self.grid_height != height {
+            // Clear existing cells when dimensions change
+            self.grid.clear();
+            self.dirty_cells.clear();
+        }
+        self.grid_width = width;
+        self.grid_height = height;
     }
 
     pub fn tape(&self) -> &FxHashMap<(i32, i32), char> {

@@ -44,6 +44,9 @@ impl App {
     }
 
     pub fn update(&mut self, width: i32, height: i32) {
+        // Update grid dimensions
+        self.machine.update_grid_dimensions(width, height);
+        
         if self.machine.running && self.last_step.elapsed() >= self.step_interval {
             let steps_per_frame = if self.step_interval < Duration::from_millis(16) {
                 (Duration::from_millis(16).as_nanos() / self.step_interval.as_nanos().max(1)) as usize
