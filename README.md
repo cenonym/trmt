@@ -43,6 +43,12 @@ cargo install trmt
 ```
 <br>
 
+**From AUR (Arch Linux)**
+```bash
+paru -S trmt
+```
+<br>
+
 **Install from source**
 ```bash
 cargo install --git https://github.com/cenonym/trmt
