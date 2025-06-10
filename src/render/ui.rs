@@ -69,7 +69,7 @@ impl PopupConfig {
             background_style: Style::default().bg(Color::Rgb(24, 28, 32)),
             content_style: Style::default().fg(Color::Rgb(220, 235, 255)),
             max_width_percent: 60,
-            max_height_percent: Some(50),
+            max_height_percent: None,
             ..Default::default()
         }
     }
