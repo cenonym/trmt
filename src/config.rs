@@ -360,6 +360,11 @@ impl Config {
             return Err("rule string cannot be empty".to_string());
         }
 
+        // Handle standard notation
+        if rule.trim().starts_with('{') {
+            return self.validate_standard_notation(rule);
+        }
+
         // Handle explicit state rules
         if rule.contains(',') {
             let combinations: Vec<&str> = rule.split(',').collect();
@@ -368,7 +373,6 @@ impl Config {
                     return Err("rule combination cannot be empty".to_string());
                 }
                 
-                // Split by colon first for multi-state format
                 let state_parts: Vec<&str> = combo.split(':').collect();
                 for state_part in state_parts {
                     self.validate_direction_string(state_part)?;
@@ -390,6 +394,100 @@ impl Config {
         Ok(())
     }
 
+    fn validate_standard_notation(&self, rule: &str) -> Result<(), String> {
+        let cleaned = rule.replace(" ", "").replace("\n", "");
+        
+        if !cleaned.starts_with('{') || !cleaned.ends_with('}') {
+            return Err("standard notation must start and end with braces".to_string());
+        }
+        
+        // Basic brace balance check
+        let mut brace_count = 0;
+        for ch in cleaned.chars() {
+            match ch {
+                '{' => brace_count += 1,
+                '}' => {
+                    brace_count -= 1;
+                    if brace_count < 0 {
+                        return Err("unmatched closing brace".to_string());
+                    }
+                },
+                _ => {}
+            }
+        }
+        
+        if brace_count != 0 {
+            return Err("unmatched braces".to_string());
+        }
+        
+        // Check for valid triplet patterns
+        let mut i = 0;
+        let chars: Vec<char> = cleaned.chars().collect();
+        
+        while i < chars.len() {
+            if i + 2 < chars.len() && chars[i] == '{' && chars[i+1] != '{' {
+                let mut j = i + 1;
+                let mut triplet_content = String::new();
+                let mut brace_depth = 1;
+                
+                while j < chars.len() && brace_depth > 0 {
+                    match chars[j] {
+                        '{' => brace_depth += 1,
+                        '}' => brace_depth -= 1,
+                        _ => {}
+                    }
+                    
+                    if brace_depth > 0 {
+                        triplet_content.push(chars[j]);
+                    }
+                    j += 1;
+                }
+                
+                if triplet_content.matches(',').count() == 2 {
+                    self.validate_triplet(&triplet_content)?;
+                }
+                
+                i = j;
+            } else {
+                i += 1;
+            }
+        }
+        
+        Ok(())
+    }
+
+    fn validate_triplet(&self, triplet: &str) -> Result<(), String> {
+        let values: Vec<&str> = triplet.split(',').collect();
+        if values.len() != 3 {
+            return Ok(());
+        }
+        
+        // Validate cell state
+        if let Ok(cell_state) = values[0].trim().parse::<usize>() {
+            if cell_state > 255 {
+                return Err(format!("cell state {} is out of range (0-255)", cell_state));
+            }
+        } else {
+            return Err(format!("invalid cell state: {}", values[0]));
+        }
+        
+        // Validate turn direction
+        if let Ok(turn_dir) = values[1].trim().parse::<usize>() {
+            if ![1, 2, 4, 8].contains(&turn_dir) {
+                return Err(format!("invalid turn direction: {}. Must be 1 (no turn), 2 (right), 4 (u-turn), or 8 (left)", turn_dir));
+            }
+        } else {
+            return Err(format!("invalid turn direction: {}", values[1]));
+        }
+        
+        // Validate internal state
+        if values[2].trim().parse::<usize>().is_err() {
+            return Err(format!("invalid internal state: {}", values[2]));
+        }
+        
+        Ok(())
+    }
+
     fn validate_direction_string(&self, rule: &str) -> Result<(), String> {
         // Check if rule has state transition indicator
         let directions = if let Some(transition_pos) = rule.find('>') {
@@ -398,7 +496,7 @@ impl Config {
             if !next_state_str.chars().all(|c| c.is_ascii_digit()) {
                 return Err(format!("invalid state number '{}' in rule '{}'", next_state_str, rule));
             }
-            &rule[..transition_pos] // Validate only the directions part
+            &rule[..transition_pos] // Validate only the directions
         } else {
             rule
         };

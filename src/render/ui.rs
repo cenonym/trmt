@@ -91,7 +91,7 @@ impl PopupConfig {
     }
 }
 
-pub fn render_enhanced_popup(f: &mut Frame, content: Vec<Line>, config: PopupConfig) {
+pub fn render_popup(f: &mut Frame, content: Vec<Line>, config: PopupConfig) {
     let area = f.area();
     
     // Calculate dimensions
@@ -159,7 +159,7 @@ pub fn render_enhanced_popup(f: &mut Frame, content: Vec<Line>, config: PopupCon
     f.render_widget(block, popup_area);
 
     // Render content
-    let enhanced_content: Vec<Line> = content.into_iter().map(|line| {
+    let formatted_content: Vec<Line> = content.into_iter().map(|line| {
         let spans: Vec<Span> = line.spans.into_iter().map(|span| {
             if span.style == Style::default() {
                 Span::styled(span.content, config.content_style)
@@ -170,7 +170,7 @@ pub fn render_enhanced_popup(f: &mut Frame, content: Vec<Line>, config: PopupCon
         Line::from(spans)
     }).collect();
 
-    let mut paragraph = Paragraph::new(enhanced_content)
+    let mut paragraph = Paragraph::new(formatted_content)
         .alignment(config.alignment);
     
     if config.wrap_text {
@@ -235,7 +235,7 @@ pub fn render_error_overlay(f: &mut Frame, _app: &App, error_message: &str) {
     error_text.push(Line::from(""));
     error_text.push(Line::from(vec![Span::styled("Press 'x' to close", Style::default().add_modifier(Modifier::BOLD))]));
     
-    render_enhanced_popup(f, error_text, PopupConfig::error());
+    render_popup(f, error_text, PopupConfig::error());
 }
 
 pub fn render_help_overlay(f: &mut Frame, app: &App) {
@@ -261,7 +261,7 @@ pub fn render_help_overlay(f: &mut Frame, app: &App) {
         Line::from(vec![Span::styled("Press 'x' to close overlays", Style::default().add_modifier(Modifier::BOLD))]),
     ];
     
-    render_enhanced_popup(f, help_text, PopupConfig::help());
+    render_popup(f, help_text, PopupConfig::help());
 }
 
 pub fn render_statusbar_overlay(f: &mut Frame, app: &App) {
@@ -290,5 +290,5 @@ pub fn render_statusbar_overlay(f: &mut Frame, app: &App) {
     );
 
     let content = vec![Line::from(status_text)];
-    render_enhanced_popup(f, content, PopupConfig::statusbar());
+    render_popup(f, content, PopupConfig::statusbar());
 }

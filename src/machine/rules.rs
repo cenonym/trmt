@@ -1,5 +1,17 @@
 use std::collections::BTreeMap;
 
+#[inline]
+fn state_char(index: usize) -> char {
+    if index < 26 {
+        (b'A' + index as u8) as char
+    } else if index < 52 {
+        (b'a' + (index - 26) as u8) as char
+    } else {
+        // Fallback for out-of-range indices
+        '?'
+    }
+}
+
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub enum Direction {
     Up,
@@ -79,10 +91,10 @@ pub struct StateTransition {
 
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub enum TurnDirection {
-    None,                    // D
-    Right,                   // R
-    UTurn,                   // U
-    Left,                    // L
+    None,                    // D / 1
+    Right,                   // R / 2
+    UTurn,                   // U / 4
+    Left,                    // L / 8
     Absolute(Direction),     // N/S/E/W/NW/NE/SW/SE
 }
 
@@ -101,31 +113,138 @@ impl TurnDirection {
 pub fn parse_rules(rule_string: &str) -> BTreeMap<(usize, char), StateTransition> {
     let mut rules = BTreeMap::new();
     
-    if rule_string.contains('>') || rule_string.contains(':') {
-        parse_multi_state_rules(rule_string, &mut rules);
+    // Check for standard notation
+    if rule_string.trim().starts_with('{') {
+        if parse_brace_notation(rule_string, &mut rules).is_err() {
+            parse_fallback_rules(rule_string, &mut rules);
+        }
+    } else if rule_string.contains('>') || rule_string.contains(':') {
+        parse_state_transition_rules(rule_string, &mut rules);
     } else {
-        parse_single_state_rules(rule_string, &mut rules);
+        parse_string_rules(rule_string, &mut rules);
     }
     
     rules
 }
 
-fn parse_multi_state_rules(rule_string: &str, rules: &mut BTreeMap<(usize, char), StateTransition>) {
-    let state_rules: Vec<&str> = rule_string.split(':').collect();
+fn parse_brace_notation(rule_string: &str, rules: &mut BTreeMap<(usize, char), StateTransition>) -> Result<(), String> {
+    let cleaned = rule_string.chars().filter(|&c| !c.is_whitespace()).collect::<String>();
     
-    for (state_idx, state_rule) in state_rules.iter().enumerate() {
-        parse_enhanced_state_rule(state_idx, state_rule, &state_rules, rules);
+    if !cleaned.starts_with('{') || !cleaned.ends_with('}') {
+        return Err("Invalid format: must start and end with braces".to_string());
+    }
+    
+    let content = &cleaned[1..cleaned.len()-1];
+    let state_parts = split_by_top_level_comma(content)?;
+    
+    for (state_idx, state_part) in state_parts.iter().enumerate() {
+        if !state_part.starts_with('{') || !state_part.ends_with('}') {
+            return Err(format!("State {} is not properly wrapped in braces", state_idx));
+        }
+        
+        let state_content = &state_part[1..state_part.len()-1];
+        let cell_parts = split_by_top_level_comma(state_content)?;
+        
+        for (cell_idx, cell_part) in cell_parts.iter().enumerate() {
+            if !cell_part.starts_with('{') || !cell_part.ends_with('}') {
+                return Err(format!("Cell rule in state {} is not properly wrapped in braces", state_idx));
+            }
+            
+            let cell_content = &cell_part[1..cell_part.len()-1];
+            let values: Vec<&str> = cell_content.split(',').collect();
+            
+            if values.len() != 3 {
+                return Err(format!("Cell rule must have exactly 3 values, got {}", values.len()));
+            }
+            
+            let new_cell_state_idx: usize = values[0].trim().parse()
+                .map_err(|_| format!("Invalid cell state: {}", values[0]))?;
+            let turn_direction_flag: usize = values[1].trim().parse()
+                .map_err(|_| format!("Invalid turn direction: {}", values[1]))?;
+            let new_internal_state: usize = values[2].trim().parse()
+                .map_err(|_| format!("Invalid internal state: {}", values[2]))?;
+            
+            let turn_direction = match turn_direction_flag {
+                1 => TurnDirection::None,
+                2 => TurnDirection::Right,
+                4 => TurnDirection::UTurn,
+                8 => TurnDirection::Left,
+                _ => return Err(format!("Invalid turn direction flag: {}. Must be 1, 2, 4, or 8", turn_direction_flag)),
+            };
+            
+            rules.insert((state_idx, state_char(cell_idx)), StateTransition {
+                new_cell_state: state_char(new_cell_state_idx),
+                turn_direction,
+                new_internal_state,
+            });
+        }
+    }
+    
+    Ok(())
+}
+
+fn split_by_top_level_comma(s: &str) -> Result<Vec<String>, String> {
+    let mut parts = Vec::new();
+    let mut current = String::new();
+    let mut brace_depth = 0;
+    let chars: Vec<char> = s.chars().collect();
+    
+    for ch in chars {
+        match ch {
+            '{' => {
+                brace_depth += 1;
+                current.push(ch);
+            },
+            '}' => {
+                brace_depth -= 1;
+                current.push(ch);
+                if brace_depth < 0 {
+                    return Err("Unmatched closing brace".to_string());
+                }
+            },
+            ',' if brace_depth == 0 => {
+                if !current.trim().is_empty() {
+                    parts.push(current.trim().to_string());
+                }
+                current.clear();
+            },
+            _ => {
+                current.push(ch);
+            }
+        }
+    }
+    
+    if brace_depth != 0 {
+        return Err("Unmatched braces".to_string());
+    }
+    
+    if !current.trim().is_empty() {
+        parts.push(current.trim().to_string());
+    }
+    
+    Ok(parts)
+}
+
+fn parse_fallback_rules(rule_string: &str, rules: &mut BTreeMap<(usize, char), StateTransition>) {
+    if rule_string.contains('>') || rule_string.contains(':') {
+        parse_state_transition_rules(rule_string, rules);
+    } else {
+        parse_string_rules(rule_string, rules);
     }
 }
 
-fn parse_single_state_rules(rule_string: &str, rules: &mut BTreeMap<(usize, char), StateTransition>) {
-    parse_legacy_rules(rule_string, rules);
+fn parse_state_transition_rules(rule_string: &str, rules: &mut BTreeMap<(usize, char), StateTransition>) {
+    let state_rules: Vec<&str> = rule_string.split(':').collect();
+    
+    for (state_idx, state_rule) in state_rules.iter().enumerate() {
+        parse_state_rule(state_idx, state_rule, &state_rules, rules);
+    }
 }
 
-fn parse_legacy_rules(rule_string: &str, rules: &mut BTreeMap<(usize, char), StateTransition>) {
-    let states = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K', 'L', 'M', 'N', 'O', 'P', 'Q', 'R', 'S', 'T', 'U', 'V', 'W', 'X', 'Y', 'Z'];
+fn parse_string_rules(rule_string: &str, rules: &mut BTreeMap<(usize, char), StateTransition>) {
+    let mut state_index = 0;
     
-    for state_index in 0..states.len() {
+    loop {
         let rule_char_index = state_index % rule_string.len();
         let rule_chars: Vec<char> = rule_string.chars().collect();
         let c = rule_chars[rule_char_index];
@@ -154,28 +273,30 @@ fn parse_legacy_rules(rule_string: &str, rules: &mut BTreeMap<(usize, char), Sta
             }
         };
         
-        rules.insert((0, states[state_index]), StateTransition {
-            new_cell_state: states[(state_index + 1) % rule_string.len()],
+        rules.insert((0, state_char(state_index)), StateTransition {
+            new_cell_state: state_char((state_index + 1) % rule_string.len()),
             turn_direction,
             new_internal_state: 0,
         });
+        
+        state_index += 1;
+        
+        if state_index >= 256 {
+            break;
+        }
     }
 }
 
-fn parse_enhanced_state_rule(
+fn parse_state_rule(
     state_idx: usize, 
     rule: &str, 
     all_state_rules: &[&str], 
     rules: &mut BTreeMap<(usize, char), StateTransition>
 ) {
-    let states = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K', 'L', 'M', 'N', 'O', 'P', 'Q', 'R', 'S', 'T', 'U', 'V', 'W', 'X', 'Y', 'Z'];
-    
     // Handle internal multi-state
     if rule.contains(',') {
         let transitions: Vec<&str> = rule.split(',').collect();
         for (cell_idx, transition) in transitions.iter().enumerate() {
-            if cell_idx >= states.len() { break; }
-            
             // Parse direction and cell specification
             let (directions, next_state) = if let Some(transition_pos) = transition.find('>') {
                 let directions = &transition[..transition_pos];
@@ -186,20 +307,20 @@ fn parse_enhanced_state_rule(
                 (*transition, state_idx)
             };
             
-            let current_cell = states[cell_idx];
+            let current_cell = state_char(cell_idx);
             
             // Check if direction string ends with a cell specifier
             let (direction_part, next_cell) = if let Some(last_char) = directions.chars().last() {
                 if last_char.is_ascii_digit() {
                     let cell_idx = last_char.to_digit(10).unwrap_or(0) as usize;
-                    let next_cell = states[cell_idx.min(states.len() - 1)];
+                    let next_cell = state_char(cell_idx);
                     let direction_part = &directions[..directions.len() - 1];
                     (direction_part, next_cell)
                 } else {
-                    (directions, states[(cell_idx + 1) % 2])
+                    (directions, state_char((cell_idx + 1) % 2))
                 }
             } else {
-                (directions, states[(cell_idx + 1) % 2])
+                (directions, state_char((cell_idx + 1) % 2))
             };
             
             if let Some(direction_char) = direction_part.chars().next() {
@@ -245,10 +366,10 @@ fn parse_enhanced_state_rule(
     let mut i = 0;
     let mut cell_state_idx = 0;
     
-    while i < directions.len() && cell_state_idx < states.len() {
+    while i < directions.len() && cell_state_idx < 256 {
         let remaining = &directions[i..];
-        let current_cell = states[cell_state_idx];
-        let next_cell = states[(cell_state_idx + 1) % directions.len()];
+        let current_cell = state_char(cell_state_idx);
+        let next_cell = state_char((cell_state_idx + 1) % directions.len());
         
         // Parse direction/turn
         let (turn_direction, chars_consumed) = if remaining.starts_with("NW") {
