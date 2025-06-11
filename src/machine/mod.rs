@@ -92,9 +92,9 @@ impl TuringMachine {
         self.heads.clear();
         self.heads.reserve(self.num_heads);
         
-        let seed = if let Some(config_seed) = &config.simulation.seed {
-            if !config_seed.is_empty() {
-                config_seed.clone()
+        let seed = if let Some(effective_seed) = config.get_effective_seed() {
+            if !effective_seed.is_empty() {
+                effective_seed
             } else {
                 self.generate_random_seed()
             }

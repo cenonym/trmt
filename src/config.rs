@@ -282,6 +282,61 @@ impl Config {
         }
     }
 
+    fn state_dir() -> PathBuf {
+        if let Some(state_dir) = std::env::var_os("XDG_STATE_HOME") {
+            PathBuf::from(state_dir).join("trmt")
+        } else if let Some(home_dir) = dirs::home_dir() {
+            home_dir.join(".local").join("state").join("trmt")
+        } else {
+            PathBuf::from(".local/state/trmt")
+        }
+    }
+
+    pub fn get_effective_seed(&self) -> Option<String> {
+        let state_path = Self::state_dir().join("current_seed");
+        
+        if state_path.exists() {
+            if let Ok(seed) = std::fs::read_to_string(&state_path) {
+                let trimmed = seed.trim();
+                if !trimmed.is_empty() {
+                    return Some(trimmed.to_string());
+                }
+            }
+        }
+        
+        self.simulation.seed.clone()
+    }
+
+    pub fn save_current_seed(seed: &str) -> Result<(), Box<dyn Error>> {
+        let state_dir = Self::state_dir();
+        std::fs::create_dir_all(&state_dir)?;
+        
+        let state_path = state_dir.join("current_seed");
+        std::fs::write(&state_path, seed)?;
+        
+        Ok(())
+    }
+
+    pub fn clear_current_seed() -> Result<(), Box<dyn Error>> {
+        let state_path = Self::state_dir().join("current_seed");
+        if state_path.exists() {
+            std::fs::remove_file(&state_path)?;
+        }
+        Ok(())
+    }
+
+    pub fn toggle_runtime_seed(current_seed: &str) -> Result<(), Box<dyn Error>> {
+        let state_path = Self::state_dir().join("current_seed");
+        
+        if state_path.exists() {
+            Self::clear_current_seed()?;
+        } else {
+            Self::save_current_seed(current_seed)?;
+        }
+        
+        Ok(())
+    }
+
     pub fn validate(&self) -> Result<(), Vec<String>> {
         let mut errors = Vec::new();
 
@@ -570,27 +625,6 @@ impl Config {
             let example_content = toml::to_string_pretty(self)?;
             fs::write(&config_path, example_content)?;
         }
-        
-        Ok(())
-    }
-
-    pub fn toggle_seed(&mut self, current_seed: &str) -> Result<(), Box<dyn Error>> {
-        let config_path = Self::config_dir().join("config.toml");
-        
-        // Update seed in config
-        if let Some(config_seed) = &self.simulation.seed {
-            if config_seed == current_seed {
-                self.simulation.seed = Some(String::new()); // Clear seed
-            } else {
-                self.simulation.seed = Some(current_seed.to_string()); // Set current seed
-            }
-        } else {
-            self.simulation.seed = Some(current_seed.to_string()); // Set seed if None
-        }
-        
-        // Write updated config
-        let content = toml::to_string_pretty(self)?;
-        fs::write(&config_path, content)?;
         
         Ok(())
     }

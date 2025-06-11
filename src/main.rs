@@ -145,7 +145,7 @@ fn run_app<B: ratatui::backend::Backend>(
                         s if s == app.config.controls.help => app.show_help = !app.show_help,
                         s if s == app.config.controls.statusbar => app.show_statusbar = !app.show_statusbar,
                         s if s == app.config.controls.seed_toggle => {
-                            let _ = app.config.toggle_seed(&app.machine.current_seed);
+                            let _ = Config::toggle_runtime_seed(&app.machine.current_seed);
                         },
                         "x" => app.clear_overlays(),
                         _ => {}
