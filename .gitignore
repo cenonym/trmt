@@ -16,3 +16,7 @@ target/
 cargo-flamegraph.trace/
 flamegraph.svg
 profile.json.gz
+
+# Nix
+/result
+.direnv/
