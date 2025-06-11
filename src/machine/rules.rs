@@ -242,6 +242,10 @@ fn parse_state_transition_rules(rule_string: &str, rules: &mut BTreeMap<(usize, 
 }
 
 fn parse_string_rules(rule_string: &str, rules: &mut BTreeMap<(usize, char), StateTransition>) {
+    if rule_string.is_empty() {
+        return; // Don't parse empty rules
+    }
+
     let mut state_index = 0;
     
     loop {

@@ -1,6 +1,7 @@
 use ratatui::style::Color;
 use serde::{Deserialize, Serialize};
 use std::{error::Error, fs, path::PathBuf};
+use rand::Rng;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[derive(Default)]
@@ -95,6 +96,8 @@ pub struct ControlsConfig {
     pub statusbar: String,
     #[serde(default = "seed_key")]
     pub seed_toggle: String,
+    #[serde(default = "rule_key")]
+    pub rule_toggle: String,
 }
 
 // Default config
@@ -135,7 +138,7 @@ fn statusbar_key() -> String { "b".to_string() }
 fn seed_key() -> String { "s".to_string() }
 fn color_cells() -> bool { true }
 fn seed() -> Option<String> { Some(String::new()) }
-
+fn rule_key() -> String { "n".to_string() }
 
 impl Default for SimulationConfig {
     fn default() -> Self {
@@ -183,6 +186,7 @@ impl Default for ControlsConfig {
             help: help_key(),
             statusbar: statusbar_key(),
             seed_toggle: seed_key(),
+            rule_toggle: rule_key(),
         }
     }
 }
@@ -293,8 +297,15 @@ impl Config {
     }
 
     pub fn get_effective_seed(&self) -> Option<String> {
-        let state_path = Self::state_dir().join("current_seed");
+        // Config takes precedence over runtime state
+        if let Some(ref config_seed) = self.simulation.seed {
+            if !config_seed.is_empty() {
+                return Some(config_seed.clone());
+            }
+        }
         
+        // Fall back to runtime state
+        let state_path = Self::state_dir().join("current_seed");
         if state_path.exists() {
             if let Ok(seed) = std::fs::read_to_string(&state_path) {
                 let trimmed = seed.trim();
@@ -304,7 +315,7 @@ impl Config {
             }
         }
         
-        self.simulation.seed.clone()
+        None
     }
 
     pub fn save_current_seed(seed: &str) -> Result<(), Box<dyn Error>> {
@@ -332,6 +343,137 @@ impl Config {
             Self::clear_current_seed()?;
         } else {
             Self::save_current_seed(current_seed)?;
+        }
+        
+        Ok(())
+    }
+
+    // Random rule generation
+    pub fn generate_random_rule() -> String {
+        let mut rng = rand::thread_rng();
+        
+        match rng.gen_range(0..4) {
+            0 => Self::generate_basic_rule(&mut rng),
+            1 => Self::generate_multi_state_rule(&mut rng),
+            2 => Self::generate_explicit_rule(&mut rng),
+            _ => Self::generate_cell_specifier_rule(&mut rng),
+        }
+    }
+    
+    fn generate_basic_rule(rng: &mut impl Rng) -> String {
+        let directions = ["L", "R", "U", "D", "N", "S", "E", "W", "NW", "NE", "SW", "SE"];
+        let length = rng.gen_range(2..=8);
+        
+        let mut unique_dirs = std::collections::HashSet::new();
+        let mut rule = Vec::new();
+        
+        while rule.len() < length {
+            let dir = directions[rng.gen_range(0..directions.len())];
+            rule.push(dir);
+            unique_dirs.insert(dir);
+            
+            if rule.len() >= length - 1 && unique_dirs.len() < 2 {
+                let different_dir = directions.iter()
+                    .find(|&&d| !unique_dirs.contains(d))
+                    .unwrap_or(&directions[0]);
+                rule.push(different_dir);
+                break;
+            }
+        }
+        
+        rule.into_iter().collect()
+    }
+    
+    fn generate_multi_state_rule(rng: &mut impl Rng) -> String {
+        let states = rng.gen_range(2..=4);
+        let mut state_rules = Vec::new();
+        
+        // Generate base rules
+        for _ in 0..states {
+            state_rules.push(Self::generate_basic_rule(rng));
+        }
+        
+        // Ensure state transitions exist by adding explicit transitions
+        for state_rule in state_rules.iter_mut() {
+            if rng.gen_bool(0.3) {
+                let target_state = rng.gen_range(0..states);
+                *state_rule = format!("{}>{}", state_rule, target_state);
+            }
+        }
+        
+        state_rules.join(":")
+    }
+    
+    fn generate_explicit_rule(rng: &mut impl Rng) -> String {
+        let directions = ["L", "R", "U", "D"];
+        let combos = rng.gen_range(2..=4);
+        (0..combos)
+            .map(|i| {
+                let dir = directions[rng.gen_range(0..directions.len())];
+                let next_state = (i + 1) % combos; // Ensure state progression
+                format!("{}>{}", dir, next_state)
+            })
+            .collect::<Vec<_>>()
+            .join(",")
+    }
+
+    fn generate_cell_specifier_rule(rng: &mut impl Rng) -> String {
+        let directions = ["L", "R", "U", "D"];
+        let cell_state = rng.gen_range(0..2);
+        let next_state = 1 - cell_state;
+        format!("{}{}>{}", 
+            directions[rng.gen_range(0..directions.len())],
+            cell_state,
+            next_state)
+    }
+
+    // Rule state management
+    pub fn get_effective_rule(&self) -> String {
+        // Config takes priority over runtime state
+        if !self.simulation.rule.is_empty() {
+            return self.simulation.rule.clone();
+        }
+        
+        // Fall back to runtime state
+        let state_path = Self::state_dir().join("current_rule");
+        if state_path.exists() {
+            if let Ok(rule) = std::fs::read_to_string(&state_path) {
+                let trimmed = rule.trim();
+                if !trimmed.is_empty() {
+                    return trimmed.to_string();
+                }
+            }
+        }
+        
+        // Generate random rule if both are empty
+        Self::generate_random_rule()
+    }
+
+    pub fn save_current_rule(rule: &str) -> Result<(), Box<dyn Error>> {
+        let state_dir = Self::state_dir();
+        std::fs::create_dir_all(&state_dir)?;
+        
+        let state_path = state_dir.join("current_rule");
+        std::fs::write(&state_path, rule)?;
+        
+        Ok(())
+    }
+
+    pub fn clear_current_rule() -> Result<(), Box<dyn Error>> {
+        let state_path = Self::state_dir().join("current_rule");
+        if state_path.exists() {
+            std::fs::remove_file(&state_path)?;
+        }
+        Ok(())
+    }
+
+    pub fn toggle_runtime_rule(current_rule: &str) -> Result<(), Box<dyn Error>> {
+        let state_path = Self::state_dir().join("current_rule");
+        
+        if state_path.exists() {
+            Self::clear_current_rule()?;
+        } else {
+            Self::save_current_rule(current_rule)?;
         }
         
         Ok(())
@@ -387,6 +529,7 @@ impl Config {
             ("help", &self.controls.help),
             ("statusbar", &self.controls.statusbar),
             ("seed_toggle", &self.controls.seed_toggle),
+            ("rule_toggle", &self.controls.rule_toggle),
         ];
 
         for (name, key) in &controls {
@@ -412,7 +555,7 @@ impl Config {
 
     fn validate_rule_string(&self, rule: &str) -> Result<(), String> {
         if rule.is_empty() {
-            return Err("rule string cannot be empty".to_string());
+            return Ok(());
         }
 
         // Handle standard notation

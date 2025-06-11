@@ -103,6 +103,11 @@ impl TuringMachine {
         };
         
         self.current_seed = seed.clone();
+        
+        let effective_rule = config.get_effective_rule();
+        self.parse_rules(&effective_rule);
+        self.rule_string = effective_rule;
+        
         let seed_hash = self.hash_seed(&seed);
         let mut rng = StdRng::seed_from_u64(seed_hash);
 
@@ -245,13 +250,17 @@ impl TuringMachine {
         self.running = !self.running;
     }
 
+    // Save runtime state and reset
     pub fn reset(&mut self, config: &Config) {
-        self.running = false;
-        self.steps = 0;
-        self.grid.clear();
-        self.dirty_cells.clear();
-        self.spawn_heads(config);
-    }
+    let _ = Config::save_current_seed(&self.current_seed);
+    let _ = Config::save_current_rule(&self.rule_string);
+    
+    self.running = false;
+    self.steps = 0;
+    self.grid.clear();
+    self.dirty_cells.clear();
+    self.spawn_heads(config);
+}
 
     pub fn set_head_count(&mut self, count: usize, config: &Config) {
         self.num_heads = count.min(256);

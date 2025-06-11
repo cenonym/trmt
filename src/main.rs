@@ -109,16 +109,23 @@ fn run_app<B: ratatui::backend::Backend>(
                         s if s == app.config.controls.config_reload => {
                             match Config::load() {
                                 ConfigLoadResult::Success(config) => {
+                                    // Clear runtime state to prioritize config
+                                    let _ = Config::clear_current_seed();
+                                    let _ = Config::clear_current_rule();
+                                    
                                     app.config = config;
                                     app.config.display.cache_char_data();
                                     app.machine.set_head_count(app.config.simulation.heads, &app.config);
                                     app.step_interval = Duration::from_nanos((app.config.simulation.speed_ms * 1_000_000.0) as u64);
-                                    app.machine.parse_rules(&app.config.simulation.rule);
-                                    app.machine.rule_string = app.config.simulation.rule.clone();
+                                    
+                                    let effective_rule = app.config.get_effective_rule();
+                                    app.machine.parse_rules(&effective_rule);
+                                    app.machine.rule_string = effective_rule;
+                                    
                                     app.machine.update_colors(&app.config);
                                     app.machine.reset(&app.config);
-                                    app.error_message = None; // Clear any existing errors
-                                },
+                                    app.error_message = None;
+                                }
                                 ConfigLoadResult::ValidationErrors(config, errors) => {
                                     app.config = config;
                                     app.show_error(format!("Config validation failed:\n{}", errors.join("\n")));
@@ -145,7 +152,14 @@ fn run_app<B: ratatui::backend::Backend>(
                         s if s == app.config.controls.help => app.show_help = !app.show_help,
                         s if s == app.config.controls.statusbar => app.show_statusbar = !app.show_statusbar,
                         s if s == app.config.controls.seed_toggle => {
-                            let _ = Config::toggle_runtime_seed(&app.machine.current_seed);
+                            if let Err(e) = Config::toggle_runtime_seed(&app.machine.current_seed) {
+                                app.show_error(format!("Failed to toggle seed: {}", e));
+                            }
+                        },
+                        s if s == app.config.controls.rule_toggle => {
+                            if let Err(e) = Config::toggle_runtime_rule(&app.machine.rule_string) {
+                                app.show_error(format!("Failed to toggle rule: {}", e));
+                            }
                         },
                         "x" => app.clear_overlays(),
                         _ => {}
