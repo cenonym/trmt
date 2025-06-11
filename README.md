@@ -49,6 +49,28 @@ paru -S trmt
 ```
 <br>
 
+**Using Flakes (Nix)**
+Add `trmt` to your flake as an input, and then add it to your packages:
+```nix
+{
+  inputs = {
+    ... # other inputs
+    trmt.url = "github:cenonym/trmt";
+  };
+
+  outputs = { nixpkgs, trmt, ... }: {
+    nixosConfigurations.<mysystem> = nixpkgs.lib.nixosSystem {
+      modules = [
+        ({ pkgs, ... }: {
+          environment.systemPackages = [ trmt.packages.${pkgs.system}.default ];
+        })
+      ];
+    };
+  };
+}
+```
+<br>
+
 **Install from source**
 ```bash
 cargo install --git https://github.com/cenonym/trmt
