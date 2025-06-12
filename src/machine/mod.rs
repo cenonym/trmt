@@ -23,6 +23,8 @@ pub struct TuringMachine {
     pub running: bool,
     pub steps: u64,
     pub current_seed: String,
+    pub grid_width: i32,
+    pub grid_height: i32,
     colors: Vec<Color>,
     cached_parsed_colors: FxHashMap<String, Color>,
     updates_buffer: Vec<(usize, char, TurnDirection, usize, i32, i32, Color)>,
@@ -42,9 +44,11 @@ impl TuringMachine {
             rule_string: rule_string.to_string(),
             rules: BTreeMap::new(),
             num_heads: num_heads.min(256),
-            running: true,
+            running: config.simulation.autoplay,
             steps: 0,
             current_seed: String::new(),
+            grid_width: 100,
+            grid_height: 100,
             colors: Vec::new(),
             cached_parsed_colors: FxHashMap::default(),
             updates_buffer: Vec::with_capacity(256),
@@ -88,9 +92,9 @@ impl TuringMachine {
         self.heads.clear();
         self.heads.reserve(self.num_heads);
         
-        let seed = if let Some(config_seed) = &config.simulation.seed {
-            if !config_seed.is_empty() {
-                config_seed.clone()
+        let seed = if let Some(effective_seed) = config.get_effective_seed() {
+            if !effective_seed.is_empty() {
+                effective_seed
             } else {
                 self.generate_random_seed()
             }
@@ -99,12 +103,17 @@ impl TuringMachine {
         };
         
         self.current_seed = seed.clone();
+        
+        let effective_rule = config.get_effective_rule();
+        self.parse_rules(&effective_rule);
+        self.rule_string = effective_rule;
+        
         let seed_hash = self.hash_seed(&seed);
         let mut rng = StdRng::seed_from_u64(seed_hash);
 
         for i in 0..self.num_heads {
-            let x = rng.gen_range(0..100);
-            let y = rng.gen_range(0..100);
+            let x = rng.gen_range(0..self.grid_width.max(1));
+            let y = rng.gen_range(0..self.grid_height.max(1));
             let mut head = Head::new(x, y, Color::White);
             head.color = config.display.get_head_color(i, config);
             self.heads.push(head);
@@ -143,7 +152,7 @@ impl TuringMachine {
         color
     }
 
-    fn generate_random_seed(&self) -> String {
+    pub fn generate_random_seed(&self) -> String {
         use rand::distributions::Alphanumeric;
         let mut rng = rand::thread_rng();
         (0..8)
@@ -241,8 +250,20 @@ impl TuringMachine {
         self.running = !self.running;
     }
 
+    // Save runtime state and reset
     pub fn reset(&mut self, config: &Config) {
-        self.running = false;
+        let _ = Config::save_current_seed(&self.current_seed);
+        let _ = Config::save_current_rule(&self.rule_string);
+        
+        self.running = config.simulation.autoplay;
+        self.steps = 0;
+        self.grid.clear();
+        self.dirty_cells.clear();
+        self.spawn_heads(config);
+    }
+
+    pub fn reset_clean(&mut self, config: &Config) {
+        self.running = config.simulation.autoplay;
         self.steps = 0;
         self.grid.clear();
         self.dirty_cells.clear();
@@ -252,6 +273,16 @@ impl TuringMachine {
     pub fn set_head_count(&mut self, count: usize, config: &Config) {
         self.num_heads = count.min(256);
         self.spawn_heads(config);
+    }
+
+    pub fn update_grid_dimensions(&mut self, width: i32, height: i32) {
+        if self.grid_width != width || self.grid_height != height {
+            // Clear existing cells when dimensions change
+            self.grid.clear();
+            self.dirty_cells.clear();
+        }
+        self.grid_width = width;
+        self.grid_height = height;
     }
 
     pub fn tape(&self) -> &FxHashMap<(i32, i32), char> {

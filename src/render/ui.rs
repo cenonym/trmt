@@ -12,6 +12,7 @@ use super::App;
 pub enum PopupPosition {
     Center,
     Bottom,
+    BottomLeft,
 }
 
 #[derive(Debug, Clone)]
@@ -69,7 +70,7 @@ impl PopupConfig {
             background_style: Style::default().bg(Color::Rgb(24, 28, 32)),
             content_style: Style::default().fg(Color::Rgb(220, 235, 255)),
             max_width_percent: 60,
-            max_height_percent: Some(50),
+            max_height_percent: None,
             ..Default::default()
         }
     }
@@ -89,9 +90,25 @@ impl PopupConfig {
             ..Default::default()
         }
     }
+
+    pub fn keycast() -> Self {
+        Self {
+            title: "".to_string(),
+            title_style: Style::default(),
+            border_style: Style::default().fg(Color::Rgb(100, 150, 80)),
+            background_style: Style::default().bg(Color::Rgb(24, 28, 24)),
+            content_style: Style::default().fg(Color::Rgb(200, 220, 200)).add_modifier(Modifier::BOLD),
+            max_width_percent: 20,
+            max_height_percent: None,
+            alignment: Alignment::Center,
+            wrap_text: false,
+            position: PopupPosition::BottomLeft,
+            padding: 0,
+        }
+    }
 }
 
-pub fn render_enhanced_popup(f: &mut Frame, content: Vec<Line>, config: PopupConfig) {
+pub fn render_popup(f: &mut Frame, content: Vec<Line>, config: PopupConfig) {
     let area = f.area();
     
     // Calculate dimensions
@@ -134,18 +151,27 @@ pub fn render_enhanced_popup(f: &mut Frame, content: Vec<Line>, config: PopupCon
     let popup_area = match config.position {
         PopupPosition::Center => centered_rect_fixed_size(popup_width, popup_height, area),
         PopupPosition::Bottom => bottom_rect_fixed_size(popup_width, popup_height, area),
+        PopupPosition::BottomLeft => bottom_left_rect_fixed_size(popup_width, popup_height, area),
     };
     
     f.render_widget(Clear, popup_area);
 
-    let block = Block::default()
-        .borders(Borders::ALL)
-        .border_set(border::ROUNDED)
-        .title(format!(" {} ", config.title))
-        .title_alignment(Alignment::Left)
-        .title_style(config.title_style)
-        .border_style(config.border_style)
-        .style(config.background_style);
+    let block = if config.title.is_empty() {
+        Block::default()
+            .borders(Borders::ALL)
+            .border_set(border::ROUNDED)
+            .border_style(config.border_style)
+            .style(config.background_style)
+    } else {
+        Block::default()
+            .borders(Borders::ALL)
+            .border_set(border::ROUNDED)
+            .title(format!(" {} ", config.title))
+            .title_alignment(Alignment::Left)
+            .title_style(config.title_style)
+            .border_style(config.border_style)
+            .style(config.background_style)
+    };
 
     // Content area
     let content_area = Rect {
@@ -159,7 +185,7 @@ pub fn render_enhanced_popup(f: &mut Frame, content: Vec<Line>, config: PopupCon
     f.render_widget(block, popup_area);
 
     // Render content
-    let enhanced_content: Vec<Line> = content.into_iter().map(|line| {
+    let formatted_content: Vec<Line> = content.into_iter().map(|line| {
         let spans: Vec<Span> = line.spans.into_iter().map(|span| {
             if span.style == Style::default() {
                 Span::styled(span.content, config.content_style)
@@ -170,7 +196,7 @@ pub fn render_enhanced_popup(f: &mut Frame, content: Vec<Line>, config: PopupCon
         Line::from(spans)
     }).collect();
 
-    let mut paragraph = Paragraph::new(enhanced_content)
+    let mut paragraph = Paragraph::new(formatted_content)
         .alignment(config.alignment);
     
     if config.wrap_text {
@@ -219,6 +245,15 @@ fn bottom_rect_fixed_size(width: u16, height: u16, r: Rect) -> Rect {
         .split(popup_layout[1])[1]
 }
 
+fn bottom_left_rect_fixed_size(width: u16, height: u16, r: Rect) -> Rect {
+    Rect {
+        x: r.x + 1,
+        y: r.y + r.height.saturating_sub(height),
+        width,
+        height,
+    }
+}
+
 pub fn render_error_overlay(f: &mut Frame, _app: &App, error_message: &str) {
     let mut error_text = vec![];
     
@@ -235,7 +270,7 @@ pub fn render_error_overlay(f: &mut Frame, _app: &App, error_message: &str) {
     error_text.push(Line::from(""));
     error_text.push(Line::from(vec![Span::styled("Press 'x' to close", Style::default().add_modifier(Modifier::BOLD))]));
     
-    render_enhanced_popup(f, error_text, PopupConfig::error());
+    render_popup(f, error_text, PopupConfig::error());
 }
 
 pub fn render_help_overlay(f: &mut Frame, app: &App) {
@@ -250,7 +285,9 @@ pub fn render_help_overlay(f: &mut Frame, app: &App) {
         Line::from(format!("{}: Reload config", app.config.controls.config_reload)),
         Line::from(format!("{}: Toggle help", app.config.controls.help)),
         Line::from(format!("{}: Toggle statusbar", app.config.controls.statusbar)),
-        Line::from(format!("{}: Toggle seed", app.config.controls.seed_toggle)),
+        Line::from(format!("{}: Random seed", app.config.controls.randomize_seed)),
+        Line::from(format!("{}: Random rule", app.config.controls.randomize_rule)),
+        Line::from("R: Random seed & rule"),
         Line::from(""),
         Line::from(vec![Span::styled("Head Count", Style::default().add_modifier(Modifier::BOLD))]),
         Line::from(""),
@@ -261,7 +298,7 @@ pub fn render_help_overlay(f: &mut Frame, app: &App) {
         Line::from(vec![Span::styled("Press 'x' to close overlays", Style::default().add_modifier(Modifier::BOLD))]),
     ];
     
-    render_enhanced_popup(f, help_text, PopupConfig::help());
+    render_popup(f, help_text, PopupConfig::help());
 }
 
 pub fn render_statusbar_overlay(f: &mut Frame, app: &App) {
@@ -290,5 +327,12 @@ pub fn render_statusbar_overlay(f: &mut Frame, app: &App) {
     );
 
     let content = vec![Line::from(status_text)];
-    render_enhanced_popup(f, content, PopupConfig::statusbar());
+    render_popup(f, content, PopupConfig::statusbar());
+}
+
+pub fn render_keycast_overlay(f: &mut Frame, app: &App) {
+    if let Some(ref keypress) = app.last_keypress {
+        let content = vec![Line::from(keypress.clone())];
+        render_popup(f, content, PopupConfig::keycast());
+    }
 }

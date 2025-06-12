@@ -1,6 +1,6 @@
 # matrix
 Inspired by [cmatrix](https://github.com/abishekvashok/cmatrix) and [unimatrix](https://github.com/will8211/unimatrix)
-![factory](/assets/trmt_v0_4_0_matrix_example.png)
+![factory](/assets/trmt_v0_4_0_matrix_example.webp)
 
 ### Config
 ```toml

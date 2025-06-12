@@ -1,6 +1,7 @@
 use ratatui::style::Color;
 use serde::{Deserialize, Serialize};
 use std::{error::Error, fs, path::PathBuf};
+use rand::Rng;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[derive(Default)]
@@ -15,6 +16,8 @@ pub struct Config {
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct SimulationConfig {
+    #[serde(default = "autoplay")]
+    pub autoplay: bool,
     #[serde(default = "heads")]
     pub heads: usize,
     #[serde(default = "rule")]
@@ -31,6 +34,8 @@ pub struct SimulationConfig {
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct DisplayConfig {
+    #[serde(default = "keycast")]
+    pub keycast: bool,
     #[serde(default = "colors")]
     pub colors: Vec<String>,
     #[serde(default = "fade_trail_color")]
@@ -94,14 +99,20 @@ pub struct ControlsConfig {
     #[serde(default = "statusbar_key")]
     pub statusbar: String,
     #[serde(default = "seed_key")]
-    pub seed_toggle: String,
+    pub randomize_seed: String,
+    #[serde(default = "rule_key")]
+    pub randomize_rule: String,
+    #[serde(default = "randomize_key")]
+    pub randomize: String,
 }
 
 // Default config
+fn autoplay() -> bool { true }
 fn heads() -> usize { 6 }
 fn rule() -> String { "RL".to_string() }
 fn speed() -> f64 { 50.0 }
 fn trail_length() -> usize { 16 }
+fn keycast() -> bool { false }
 fn colors() -> Vec<String> {
     vec![
         "rgb(241, 113, 54)".to_string(),
@@ -135,11 +146,13 @@ fn statusbar_key() -> String { "b".to_string() }
 fn seed_key() -> String { "s".to_string() }
 fn color_cells() -> bool { true }
 fn seed() -> Option<String> { Some(String::new()) }
-
+fn rule_key() -> String { "n".to_string() }
+fn randomize_key() -> String { "R".to_string() }
 
 impl Default for SimulationConfig {
     fn default() -> Self {
         Self {
+            autoplay: autoplay(),
             heads: heads(),
             rule: rule(),
             speed_ms: speed(),
@@ -153,6 +166,7 @@ impl Default for SimulationConfig {
 impl Default for DisplayConfig {
     fn default() -> Self {
         let mut config = Self {
+            keycast: keycast(),
             colors: colors(),
             fade_trail_color: fade_trail_color(),
             state_based_colors: state_based_colors(),
@@ -182,7 +196,9 @@ impl Default for ControlsConfig {
             config_reload: config_key(),
             help: help_key(),
             statusbar: statusbar_key(),
-            seed_toggle: seed_key(),
+            randomize_seed: seed_key(),
+            randomize_rule: rule_key(),
+            randomize: randomize_key(),
         }
     }
 }
@@ -282,6 +298,177 @@ impl Config {
         }
     }
 
+    fn state_dir() -> PathBuf {
+        if let Some(state_dir) = std::env::var_os("XDG_STATE_HOME") {
+            PathBuf::from(state_dir).join("trmt")
+        } else if let Some(home_dir) = dirs::home_dir() {
+            home_dir.join(".local").join("state").join("trmt")
+        } else {
+            PathBuf::from(".local/state/trmt")
+        }
+    }
+
+    pub fn get_effective_seed(&self) -> Option<String> {
+        let state_path = Self::state_dir().join("current_seed");
+        
+        // State takes precedence when it exists
+        if state_path.exists() {
+            if let Ok(seed) = std::fs::read_to_string(&state_path) {
+                let trimmed = seed.trim();
+                if !trimmed.is_empty() {
+                    return Some(trimmed.to_string());
+                }
+            }
+        }
+        
+        // Fall back to config
+        if let Some(ref config_seed) = self.simulation.seed {
+            if !config_seed.is_empty() {
+                return Some(config_seed.clone());
+            }
+        }
+        
+        None
+    }
+
+    pub fn save_current_seed(seed: &str) -> Result<(), Box<dyn Error>> {
+        let state_dir = Self::state_dir();
+        std::fs::create_dir_all(&state_dir)?;
+        
+        let state_path = state_dir.join("current_seed");
+        std::fs::write(&state_path, seed)?;
+        
+        Ok(())
+    }
+
+    pub fn clear_current_seed() -> Result<(), Box<dyn Error>> {
+        let state_path = Self::state_dir().join("current_seed");
+        if state_path.exists() {
+            std::fs::remove_file(&state_path)?;
+        }
+        Ok(())
+    }
+
+    // Random rule generation
+    pub fn generate_random_rule() -> String {
+        let mut rng = rand::thread_rng();
+        
+        match rng.gen_range(0..4) {
+            0 => Self::generate_basic_rule(&mut rng),
+            1 => Self::generate_multi_state_rule(&mut rng),
+            2 => Self::generate_explicit_rule(&mut rng),
+            _ => Self::generate_cell_specifier_rule(&mut rng),
+        }
+    }
+    
+    fn generate_basic_rule(rng: &mut impl Rng) -> String {
+        let directions = ["L", "R", "U", "D", "N", "S", "E", "W", "NW", "NE", "SW", "SE"];
+        let length = rng.gen_range(2..=8);
+        
+        let mut unique_dirs = std::collections::HashSet::new();
+        let mut rule = Vec::new();
+        
+        while rule.len() < length {
+            let dir = directions[rng.gen_range(0..directions.len())];
+            rule.push(dir);
+            unique_dirs.insert(dir);
+            
+            if rule.len() >= length - 1 && unique_dirs.len() < 2 {
+                let different_dir = directions.iter()
+                    .find(|&&d| !unique_dirs.contains(d))
+                    .unwrap_or(&directions[0]);
+                rule.push(different_dir);
+                break;
+            }
+        }
+        
+        rule.into_iter().collect()
+    }
+    
+    fn generate_multi_state_rule(rng: &mut impl Rng) -> String {
+        let states = rng.gen_range(2..=4);
+        let mut state_rules = Vec::new();
+        
+        // Generate base rules
+        for _ in 0..states {
+            state_rules.push(Self::generate_basic_rule(rng));
+        }
+        
+        // Ensure state transitions exist by adding explicit transitions
+        for state_rule in state_rules.iter_mut() {
+            if rng.gen_bool(0.3) {
+                let target_state = rng.gen_range(0..states);
+                *state_rule = format!("{}>{}", state_rule, target_state);
+            }
+        }
+        
+        state_rules.join(":")
+    }
+    
+    fn generate_explicit_rule(rng: &mut impl Rng) -> String {
+        let directions = ["L", "R"];
+        let combos = rng.gen_range(2..=4);
+        (0..combos)
+            .map(|i| {
+                let dir = directions[rng.gen_range(0..directions.len())];
+                let next_state = (i + 1) % combos; // Ensure state progression
+                format!("{}>{}", dir, next_state)
+            })
+            .collect::<Vec<_>>()
+            .join(",")
+    }
+
+    fn generate_cell_specifier_rule(rng: &mut impl Rng) -> String {
+        let directions = ["L", "R", "U", "D"];
+        let cell_state = rng.gen_range(0..2);
+        let next_state = 1 - cell_state;
+        format!("{}{}>{}", 
+            directions[rng.gen_range(0..directions.len())],
+            cell_state,
+            next_state)
+    }
+
+    // Rule state management
+    pub fn get_effective_rule(&self) -> String {
+        let state_path = Self::state_dir().join("current_rule");
+        
+        // State takes precedence when it exists
+        if state_path.exists() {
+            if let Ok(rule) = std::fs::read_to_string(&state_path) {
+                let trimmed = rule.trim();
+                if !trimmed.is_empty() {
+                    return trimmed.to_string();
+                }
+            }
+        }
+        
+        // Fall back to config
+        if !self.simulation.rule.is_empty() {
+            return self.simulation.rule.clone();
+        }
+        
+        // Generate random rule if both are empty
+        Self::generate_random_rule()
+    }
+
+    pub fn save_current_rule(rule: &str) -> Result<(), Box<dyn Error>> {
+        let state_dir = Self::state_dir();
+        std::fs::create_dir_all(&state_dir)?;
+        
+        let state_path = state_dir.join("current_rule");
+        std::fs::write(&state_path, rule)?;
+        
+        Ok(())
+    }
+
+    pub fn clear_current_rule() -> Result<(), Box<dyn Error>> {
+        let state_path = Self::state_dir().join("current_rule");
+        if state_path.exists() {
+            std::fs::remove_file(&state_path)?;
+        }
+        Ok(())
+    }
+
     pub fn validate(&self) -> Result<(), Vec<String>> {
         let mut errors = Vec::new();
 
@@ -331,7 +518,8 @@ impl Config {
             ("config_reload", &self.controls.config_reload),
             ("help", &self.controls.help),
             ("statusbar", &self.controls.statusbar),
-            ("seed_toggle", &self.controls.seed_toggle),
+            ("randomize_seed", &self.controls.randomize_seed),
+            ("randomize_rule", &self.controls.randomize_rule),
         ];
 
         for (name, key) in &controls {
@@ -357,7 +545,12 @@ impl Config {
 
     fn validate_rule_string(&self, rule: &str) -> Result<(), String> {
         if rule.is_empty() {
-            return Err("rule string cannot be empty".to_string());
+            return Ok(());
+        }
+
+        // Handle standard notation
+        if rule.trim().starts_with('{') {
+            return self.validate_standard_notation(rule);
         }
 
         // Handle explicit state rules
@@ -368,7 +561,6 @@ impl Config {
                     return Err("rule combination cannot be empty".to_string());
                 }
                 
-                // Split by colon first for multi-state format
                 let state_parts: Vec<&str> = combo.split(':').collect();
                 for state_part in state_parts {
                     self.validate_direction_string(state_part)?;
@@ -390,6 +582,100 @@ impl Config {
         Ok(())
     }
 
+    fn validate_standard_notation(&self, rule: &str) -> Result<(), String> {
+        let cleaned = rule.replace(" ", "").replace("\n", "");
+        
+        if !cleaned.starts_with('{') || !cleaned.ends_with('}') {
+            return Err("standard notation must start and end with braces".to_string());
+        }
+        
+        // Basic brace balance check
+        let mut brace_count = 0;
+        for ch in cleaned.chars() {
+            match ch {
+                '{' => brace_count += 1,
+                '}' => {
+                    brace_count -= 1;
+                    if brace_count < 0 {
+                        return Err("unmatched closing brace".to_string());
+                    }
+                },
+                _ => {}
+            }
+        }
+        
+        if brace_count != 0 {
+            return Err("unmatched braces".to_string());
+        }
+        
+        // Check for valid triplet patterns
+        let mut i = 0;
+        let chars: Vec<char> = cleaned.chars().collect();
+        
+        while i < chars.len() {
+            if i + 2 < chars.len() && chars[i] == '{' && chars[i+1] != '{' {
+                let mut j = i + 1;
+                let mut triplet_content = String::new();
+                let mut brace_depth = 1;
+                
+                while j < chars.len() && brace_depth > 0 {
+                    match chars[j] {
+                        '{' => brace_depth += 1,
+                        '}' => brace_depth -= 1,
+                        _ => {}
+                    }
+                    
+                    if brace_depth > 0 {
+                        triplet_content.push(chars[j]);
+                    }
+                    j += 1;
+                }
+                
+                if triplet_content.matches(',').count() == 2 {
+                    self.validate_triplet(&triplet_content)?;
+                }
+                
+                i = j;
+            } else {
+                i += 1;
+            }
+        }
+        
+        Ok(())
+    }
+
+    fn validate_triplet(&self, triplet: &str) -> Result<(), String> {
+        let values: Vec<&str> = triplet.split(',').collect();
+        if values.len() != 3 {
+            return Ok(());
+        }
+        
+        // Validate cell state
+        if let Ok(cell_state) = values[0].trim().parse::<usize>() {
+            if cell_state > 255 {
+                return Err(format!("cell state {} is out of range (0-255)", cell_state));
+            }
+        } else {
+            return Err(format!("invalid cell state: {}", values[0]));
+        }
+        
+        // Validate turn direction
+        if let Ok(turn_dir) = values[1].trim().parse::<usize>() {
+            if ![1, 2, 4, 8].contains(&turn_dir) {
+                return Err(format!("invalid turn direction: {}. Must be 1 (no turn), 2 (right), 4 (u-turn), or 8 (left)", turn_dir));
+            }
+        } else {
+            return Err(format!("invalid turn direction: {}", values[1]));
+        }
+        
+        // Validate internal state
+        if values[2].trim().parse::<usize>().is_err() {
+            return Err(format!("invalid internal state: {}", values[2]));
+        }
+        
+        Ok(())
+    }
+
     fn validate_direction_string(&self, rule: &str) -> Result<(), String> {
         // Check if rule has state transition indicator
         let directions = if let Some(transition_pos) = rule.find('>') {
@@ -398,7 +684,7 @@ impl Config {
             if !next_state_str.chars().all(|c| c.is_ascii_digit()) {
                 return Err(format!("invalid state number '{}' in rule '{}'", next_state_str, rule));
             }
-            &rule[..transition_pos] // Validate only the directions part
+            &rule[..transition_pos] // Validate only the directions
         } else {
             rule
         };
@@ -472,27 +758,6 @@ impl Config {
             let example_content = toml::to_string_pretty(self)?;
             fs::write(&config_path, example_content)?;
         }
-        
-        Ok(())
-    }
-
-    pub fn toggle_seed(&mut self, current_seed: &str) -> Result<(), Box<dyn Error>> {
-        let config_path = Self::config_dir().join("config.toml");
-        
-        // Update seed in config
-        if let Some(config_seed) = &self.simulation.seed {
-            if config_seed == current_seed {
-                self.simulation.seed = Some(String::new()); // Clear seed
-            } else {
-                self.simulation.seed = Some(current_seed.to_string()); // Set current seed
-            }
-        } else {
-            self.simulation.seed = Some(current_seed.to_string()); // Set seed if None
-        }
-        
-        // Write updated config
-        let content = toml::to_string_pretty(self)?;
-        fs::write(&config_path, content)?;
         
         Ok(())
     }

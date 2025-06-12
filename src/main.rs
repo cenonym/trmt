@@ -75,11 +75,14 @@ fn run_app<B: ratatui::backend::Backend>(
             if let Event::Key(key) = event::read()? {
                 if let KeyCode::Char(ch) = key.code {
                     let ch_str = ch.to_string();
+                    let mut key_pressed = false;
+                    
                     match ch_str.as_str() {
                         s if s == app.config.controls.quit => return Ok(()),
-                        s if s == app.config.controls.toggle => app.machine.toggle_running(),
-                        s if s == app.config.controls.reset => app.machine.reset(&app.config),
+                        s if s == app.config.controls.toggle => { key_pressed = true; app.machine.toggle_running(); },
+                        s if s == app.config.controls.reset => { key_pressed = true; app.machine.reset(&app.config); },
                         s if s == app.config.controls.faster => {
+                            key_pressed = true;
                             if app.step_interval > Duration::from_millis(100) {
                                 app.step_interval = app.step_interval.saturating_sub(Duration::from_millis(50));
                             } else if app.step_interval > Duration::from_millis(10) {
@@ -94,6 +97,7 @@ fn run_app<B: ratatui::backend::Backend>(
                             }
                         },
                         s if s == app.config.controls.slower => {
+                            key_pressed = true;
                             if app.step_interval < Duration::from_nanos(100_000) {
                                 app.step_interval = Duration::from_nanos(100_000);
                             } else if app.step_interval < Duration::from_millis(1) {
@@ -107,18 +111,26 @@ fn run_app<B: ratatui::backend::Backend>(
                             }
                         },
                         s if s == app.config.controls.config_reload => {
+                            key_pressed = true;
                             match Config::load() {
                                 ConfigLoadResult::Success(config) => {
+                                    // Clear runtime state to prioritize config
+                                    let _ = Config::clear_current_seed();
+                                    let _ = Config::clear_current_rule();
+                                    
                                     app.config = config;
                                     app.config.display.cache_char_data();
                                     app.machine.set_head_count(app.config.simulation.heads, &app.config);
                                     app.step_interval = Duration::from_nanos((app.config.simulation.speed_ms * 1_000_000.0) as u64);
-                                    app.machine.parse_rules(&app.config.simulation.rule);
-                                    app.machine.rule_string = app.config.simulation.rule.clone();
+                                    
+                                    let effective_rule = app.config.get_effective_rule();
+                                    app.machine.parse_rules(&effective_rule);
+                                    app.machine.rule_string = effective_rule;
+                                    
                                     app.machine.update_colors(&app.config);
                                     app.machine.reset(&app.config);
-                                    app.error_message = None; // Clear any existing errors
-                                },
+                                    app.error_message = None;
+                                }
                                 ConfigLoadResult::ValidationErrors(config, errors) => {
                                     app.config = config;
                                     app.show_error(format!("Config validation failed:\n{}", errors.join("\n")));
@@ -133,22 +145,53 @@ fn run_app<B: ratatui::backend::Backend>(
                                 },
                             }
                         },
-                        "1" => app.machine.set_head_count(1, &app.config),
-                        "2" => app.machine.set_head_count(2, &app.config),
-                        "3" => app.machine.set_head_count(4, &app.config),
-                        "4" => app.machine.set_head_count(8, &app.config),
-                        "5" => app.machine.set_head_count(16, &app.config),
-                        "6" => app.machine.set_head_count(32, &app.config),
-                        "7" => app.machine.set_head_count(64, &app.config),
-                        "8" => app.machine.set_head_count(128, &app.config),
-                        "9" => app.machine.set_head_count(256, &app.config),
-                        s if s == app.config.controls.help => app.show_help = !app.show_help,
-                        s if s == app.config.controls.statusbar => app.show_statusbar = !app.show_statusbar,
-                        s if s == app.config.controls.seed_toggle => {
-                            let _ = app.config.toggle_seed(&app.machine.current_seed);
+                        s if s == app.config.controls.randomize_seed => {
+                            key_pressed = true;
+                            // Generate random seed and reset
+                            let random_seed = app.machine.generate_random_seed();
+                            if let Err(e) = Config::save_current_seed(&random_seed) {
+                                app.show_error(format!("Failed to save random seed: {}", e));
+                            } else {
+                                app.machine.reset_clean(&app.config);
+                            }
                         },
-                        "x" => app.clear_overlays(),
+                        s if s == app.config.controls.randomize_rule => {
+                            key_pressed = true;
+                            // Generate random rule and reset
+                            let random_rule = Config::generate_random_rule();
+                            if let Err(e) = Config::save_current_rule(&random_rule) {
+                                app.show_error(format!("Failed to save random rule: {}", e));
+                            } else {
+                                app.machine.reset_clean(&app.config);
+                            }
+                        },
+                        s if s == app.config.controls.randomize => {
+                            key_pressed = true;
+                            // Generate random seed and rule, then reset
+                            let random_seed = app.machine.generate_random_seed();
+                            let random_rule = Config::generate_random_rule();
+                            match (Config::save_current_seed(&random_seed), Config::save_current_rule(&random_rule)) {
+                                (Ok(_), Ok(_)) => app.machine.reset_clean(&app.config),
+                                (Err(e), _) | (_, Err(e)) => app.show_error(format!("Failed to save random parameters: {}", e)),
+                            }
+                        },
+                        "1" => { key_pressed = true; app.machine.set_head_count(1, &app.config); },
+                        "2" => { key_pressed = true; app.machine.set_head_count(2, &app.config); },
+                        "3" => { key_pressed = true; app.machine.set_head_count(4, &app.config); },
+                        "4" => { key_pressed = true; app.machine.set_head_count(8, &app.config); },
+                        "5" => { key_pressed = true; app.machine.set_head_count(16, &app.config); },
+                        "6" => { key_pressed = true; app.machine.set_head_count(32, &app.config); },
+                        "7" => { key_pressed = true; app.machine.set_head_count(64, &app.config); },
+                        "8" => { key_pressed = true; app.machine.set_head_count(128, &app.config); },
+                        "9" => { key_pressed = true; app.machine.set_head_count(256, &app.config); },
+                        s if s == app.config.controls.help => { key_pressed = true; app.show_help = !app.show_help; },
+                        s if s == app.config.controls.statusbar => { key_pressed = true; app.show_statusbar = !app.show_statusbar; },
+                        "x" => { key_pressed = true; app.clear_overlays(); },
                         _ => {}
+                    }
+                    
+                    if key_pressed {
+                        app.register_keypress(ch_str);
                     }
                 }
             }

@@ -1,5 +1,5 @@
 # builders
-![builders](/assets/trmt_v0_4_0_builders_example.png)
+![builders](/assets/trmt_v0_4_0_builders_example.webp)
 
 ### Config
 ```toml
