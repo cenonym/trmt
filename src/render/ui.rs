@@ -12,6 +12,7 @@ use super::App;
 pub enum PopupPosition {
     Center,
     Bottom,
+    BottomLeft,
 }
 
 #[derive(Debug, Clone)]
@@ -89,6 +90,22 @@ impl PopupConfig {
             ..Default::default()
         }
     }
+
+    pub fn keycast() -> Self {
+        Self {
+            title: "".to_string(),
+            title_style: Style::default(),
+            border_style: Style::default().fg(Color::Rgb(100, 150, 80)),
+            background_style: Style::default().bg(Color::Rgb(24, 28, 24)),
+            content_style: Style::default().fg(Color::Rgb(200, 220, 200)).add_modifier(Modifier::BOLD),
+            max_width_percent: 20,
+            max_height_percent: None,
+            alignment: Alignment::Center,
+            wrap_text: false,
+            position: PopupPosition::BottomLeft,
+            padding: 0,
+        }
+    }
 }
 
 pub fn render_popup(f: &mut Frame, content: Vec<Line>, config: PopupConfig) {
@@ -134,18 +151,27 @@ pub fn render_popup(f: &mut Frame, content: Vec<Line>, config: PopupConfig) {
     let popup_area = match config.position {
         PopupPosition::Center => centered_rect_fixed_size(popup_width, popup_height, area),
         PopupPosition::Bottom => bottom_rect_fixed_size(popup_width, popup_height, area),
+        PopupPosition::BottomLeft => bottom_left_rect_fixed_size(popup_width, popup_height, area),
     };
     
     f.render_widget(Clear, popup_area);
 
-    let block = Block::default()
-        .borders(Borders::ALL)
-        .border_set(border::ROUNDED)
-        .title(format!(" {} ", config.title))
-        .title_alignment(Alignment::Left)
-        .title_style(config.title_style)
-        .border_style(config.border_style)
-        .style(config.background_style);
+    let block = if config.title.is_empty() {
+        Block::default()
+            .borders(Borders::ALL)
+            .border_set(border::ROUNDED)
+            .border_style(config.border_style)
+            .style(config.background_style)
+    } else {
+        Block::default()
+            .borders(Borders::ALL)
+            .border_set(border::ROUNDED)
+            .title(format!(" {} ", config.title))
+            .title_alignment(Alignment::Left)
+            .title_style(config.title_style)
+            .border_style(config.border_style)
+            .style(config.background_style)
+    };
 
     // Content area
     let content_area = Rect {
@@ -217,6 +243,15 @@ fn bottom_rect_fixed_size(width: u16, height: u16, r: Rect) -> Rect {
             Constraint::Min(0),
         ])
         .split(popup_layout[1])[1]
+}
+
+fn bottom_left_rect_fixed_size(width: u16, height: u16, r: Rect) -> Rect {
+    Rect {
+        x: r.x + 1,
+        y: r.y + r.height.saturating_sub(height),
+        width,
+        height,
+    }
 }
 
 pub fn render_error_overlay(f: &mut Frame, _app: &App, error_message: &str) {
@@ -293,4 +328,11 @@ pub fn render_statusbar_overlay(f: &mut Frame, app: &App) {
 
     let content = vec![Line::from(status_text)];
     render_popup(f, content, PopupConfig::statusbar());
+}
+
+pub fn render_keycast_overlay(f: &mut Frame, app: &App) {
+    if let Some(ref keypress) = app.last_keypress {
+        let content = vec![Line::from(keypress.clone())];
+        render_popup(f, content, PopupConfig::keycast());
+    }
 }

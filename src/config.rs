@@ -34,6 +34,8 @@ pub struct SimulationConfig {
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct DisplayConfig {
+    #[serde(default = "keycast")]
+    pub keycast: bool,
     #[serde(default = "colors")]
     pub colors: Vec<String>,
     #[serde(default = "fade_trail_color")]
@@ -108,6 +110,7 @@ fn heads() -> usize { 6 }
 fn rule() -> String { "RL".to_string() }
 fn speed() -> f64 { 50.0 }
 fn trail_length() -> usize { 16 }
+fn keycast() -> bool { false }
 fn colors() -> Vec<String> {
     vec![
         "rgb(241, 113, 54)".to_string(),
@@ -160,6 +163,7 @@ impl Default for SimulationConfig {
 impl Default for DisplayConfig {
     fn default() -> Self {
         let mut config = Self {
+            keycast: keycast(),
             colors: colors(),
             fade_trail_color: fade_trail_color(),
             state_based_colors: state_based_colors(),

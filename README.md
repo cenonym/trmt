@@ -187,6 +187,7 @@ color_cells = true                  # If true, leaves behind an infinite trail o
 seed = ""                           # Seed for initial position/direction. Empty = random
 
 [display]
+keycast = false                     # Displays the pressed key in bottom left corner, if key has an action
 colors = [                          # Array of colors mapped to number of heads sequentially, using hex, RGB or 256-colors.
     "rgb(241, 113, 54)",            # If there are more heads than colors, remaining colors are generated.
     "#45a8e9",

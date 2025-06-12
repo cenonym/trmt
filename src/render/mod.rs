@@ -14,6 +14,8 @@ pub struct App {
     pub show_help: bool,
     pub show_statusbar: bool,
     pub error_message: Option<String>,
+    pub last_keypress: Option<String>,
+    pub keypress_time: Option<std::time::Instant>
 }
 
 impl App {
@@ -30,6 +32,8 @@ impl App {
             show_help: false,
             show_statusbar: false,
             error_message: None,
+            last_keypress: None,
+            keypress_time: None,
         }
     }
 
@@ -41,6 +45,26 @@ impl App {
         self.show_help = false;
         self.show_statusbar = false;
         self.error_message = None;
+    }
+
+    pub fn register_keypress(&mut self, key: String) {
+        if self.config.display.keycast {
+            self.last_keypress = Some(key);
+            self.keypress_time = Some(std::time::Instant::now());
+        }
+    }
+
+    pub fn should_show_keycast(&self) -> bool {
+        if !self.config.display.keycast {
+            return false;
+        }
+        
+        if let (Some(_), Some(time)) = (&self.last_keypress, &self.keypress_time) {
+            // Show keycast for 2 seconds
+            time.elapsed() < Duration::from_millis(2000)
+        } else {
+            false
+        }
     }
 
     pub fn update(&mut self, width: i32, height: i32) {
@@ -66,6 +90,10 @@ impl App {
 
 pub fn ui(f: &mut Frame, app: &mut App) {
     grid::render_pixel_grid(f, app, f.area());
+
+    if app.should_show_keycast() {
+        ui::render_keycast_overlay(f, app);
+    }
 
     // Render overlays
     if let Some(ref error) = app.error_message {

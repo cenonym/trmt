@@ -75,11 +75,14 @@ fn run_app<B: ratatui::backend::Backend>(
             if let Event::Key(key) = event::read()? {
                 if let KeyCode::Char(ch) = key.code {
                     let ch_str = ch.to_string();
+                    let mut key_pressed = false;
+                    
                     match ch_str.as_str() {
                         s if s == app.config.controls.quit => return Ok(()),
-                        s if s == app.config.controls.toggle => app.machine.toggle_running(),
-                        s if s == app.config.controls.reset => app.machine.reset(&app.config),
+                        s if s == app.config.controls.toggle => { key_pressed = true; app.machine.toggle_running(); },
+                        s if s == app.config.controls.reset => { key_pressed = true; app.machine.reset(&app.config); },
                         s if s == app.config.controls.faster => {
+                            key_pressed = true;
                             if app.step_interval > Duration::from_millis(100) {
                                 app.step_interval = app.step_interval.saturating_sub(Duration::from_millis(50));
                             } else if app.step_interval > Duration::from_millis(10) {
@@ -94,6 +97,7 @@ fn run_app<B: ratatui::backend::Backend>(
                             }
                         },
                         s if s == app.config.controls.slower => {
+                            key_pressed = true;
                             if app.step_interval < Duration::from_nanos(100_000) {
                                 app.step_interval = Duration::from_nanos(100_000);
                             } else if app.step_interval < Duration::from_millis(1) {
@@ -107,6 +111,7 @@ fn run_app<B: ratatui::backend::Backend>(
                             }
                         },
                         s if s == app.config.controls.config_reload => {
+                            key_pressed = true;
                             match Config::load() {
                                 ConfigLoadResult::Success(config) => {
                                     // Clear runtime state to prioritize config
@@ -141,6 +146,7 @@ fn run_app<B: ratatui::backend::Backend>(
                             }
                         },
                         s if s == app.config.controls.seed_toggle => {
+                            key_pressed = true;
                             // Generate random seed and reset
                             let random_seed = app.machine.generate_random_seed();
                             if let Err(e) = Config::save_current_seed(&random_seed) {
@@ -150,6 +156,7 @@ fn run_app<B: ratatui::backend::Backend>(
                             }
                         },
                         s if s == app.config.controls.rule_toggle => {
+                            key_pressed = true;
                             // Generate random rule and reset
                             let random_rule = Config::generate_random_rule();
                             if let Err(e) = Config::save_current_rule(&random_rule) {
@@ -159,6 +166,7 @@ fn run_app<B: ratatui::backend::Backend>(
                             }
                         },
                         "R" => {
+                            key_pressed = true;
                             // Generate random seed and rule, then reset
                             let random_seed = app.machine.generate_random_seed();
                             let random_rule = Config::generate_random_rule();
@@ -167,19 +175,23 @@ fn run_app<B: ratatui::backend::Backend>(
                                 (Err(e), _) | (_, Err(e)) => app.show_error(format!("Failed to save random parameters: {}", e)),
                             }
                         },
-                        "1" => app.machine.set_head_count(1, &app.config),
-                        "2" => app.machine.set_head_count(2, &app.config),
-                        "3" => app.machine.set_head_count(4, &app.config),
-                        "4" => app.machine.set_head_count(8, &app.config),
-                        "5" => app.machine.set_head_count(16, &app.config),
-                        "6" => app.machine.set_head_count(32, &app.config),
-                        "7" => app.machine.set_head_count(64, &app.config),
-                        "8" => app.machine.set_head_count(128, &app.config),
-                        "9" => app.machine.set_head_count(256, &app.config),
-                        s if s == app.config.controls.help => app.show_help = !app.show_help,
-                        s if s == app.config.controls.statusbar => app.show_statusbar = !app.show_statusbar,
-                        "x" => app.clear_overlays(),
+                        "1" => { key_pressed = true; app.machine.set_head_count(1, &app.config); },
+                        "2" => { key_pressed = true; app.machine.set_head_count(2, &app.config); },
+                        "3" => { key_pressed = true; app.machine.set_head_count(4, &app.config); },
+                        "4" => { key_pressed = true; app.machine.set_head_count(8, &app.config); },
+                        "5" => { key_pressed = true; app.machine.set_head_count(16, &app.config); },
+                        "6" => { key_pressed = true; app.machine.set_head_count(32, &app.config); },
+                        "7" => { key_pressed = true; app.machine.set_head_count(64, &app.config); },
+                        "8" => { key_pressed = true; app.machine.set_head_count(128, &app.config); },
+                        "9" => { key_pressed = true; app.machine.set_head_count(256, &app.config); },
+                        s if s == app.config.controls.help => { key_pressed = true; app.show_help = !app.show_help; },
+                        s if s == app.config.controls.statusbar => { key_pressed = true; app.show_statusbar = !app.show_statusbar; },
+                        "x" => { key_pressed = true; app.clear_overlays(); },
                         _ => {}
+                    }
+                    
+                    if key_pressed {
+                        app.register_keypress(ch_str);
                     }
                 }
             }
