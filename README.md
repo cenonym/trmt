@@ -91,6 +91,7 @@ You can also use the `home-manager` module to install and configure `trmt`. Firs
     enable = true;
     config = {
       simulation = {
+        autoplay = true;
         heads = 3;
         rule = "RL";
         speed_ms = 20;
@@ -99,6 +100,7 @@ You can also use the `home-manager` module to install and configure `trmt`. Firs
         seed = "";
       };
       display = {
+        keycast = false;
         colors = ["rgb(241, 113, 54)" "#45a8e9" "229"];
         fade_trail_color = "";
         state_based_colors = false;
@@ -118,8 +120,9 @@ You can also use the `home-manager` module to install and configure `trmt`. Firs
         config_reload = "c";
         help = "h";
         statusbar = "b";
-        seed_toggle = "s";
-        rule_toggle = "n";
+        randomize_seed = "s";
+        randomize_rule = "n";
+        randomize = "R";
       };
     };
   };
@@ -211,8 +214,9 @@ slower = "-"                        # Decrease simulation speed
 config_reload = "c"                 # Reload config
 help = "h"                          # Toggle help overlay
 statusbar = "b"                     # Toggle statusbar overlay
-seed_toggle = "s"                   # Generate random seed
-rule_toggle = "n"                   # Generate random rule
+randomize_seed = "s"                # Generate random seed
+randomize_rule = "n"                # Generate random rule
+randomize = "R"                     # Generate random seed and rule
 ```
 > [!NOTE]
 > State takes precedence over config and is used across sessions. Use `c` to clear states and reload config defaults, `s`/`n` to generate new random seeds and rules respectively.

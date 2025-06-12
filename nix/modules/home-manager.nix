@@ -20,6 +20,7 @@ in {
       example = lib.literalExpression ''
         {
           simulation = {
+            autoplay = true;
             heads = 3;
             rule = "RL";
             speed_ms = 20;
@@ -28,6 +29,7 @@ in {
             seed = "";
           };
           display = {
+            keycast = false;
             colors = ["rgb(241, 113, 54)" "#45a8e9" "229"];
             fade_trail_color = "";
             state_based_colors = false;
@@ -47,8 +49,9 @@ in {
             config_reload = "c";
             help = "h";
             statusbar = "b";
-            seed_toggle = "s";
-            rule_toggle = "n";
+            randomize_seed = "s";
+            randomize_rule = "n";
+            randomize = "R";
           };
         };
       '';

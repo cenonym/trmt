@@ -99,9 +99,11 @@ pub struct ControlsConfig {
     #[serde(default = "statusbar_key")]
     pub statusbar: String,
     #[serde(default = "seed_key")]
-    pub seed_toggle: String,
+    pub randomize_seed: String,
     #[serde(default = "rule_key")]
-    pub rule_toggle: String,
+    pub randomize_rule: String,
+    #[serde(default = "randomize_key")]
+    pub randomize: String,
 }
 
 // Default config
@@ -145,6 +147,7 @@ fn seed_key() -> String { "s".to_string() }
 fn color_cells() -> bool { true }
 fn seed() -> Option<String> { Some(String::new()) }
 fn rule_key() -> String { "n".to_string() }
+fn randomize_key() -> String { "R".to_string() }
 
 impl Default for SimulationConfig {
     fn default() -> Self {
@@ -193,8 +196,9 @@ impl Default for ControlsConfig {
             config_reload: config_key(),
             help: help_key(),
             statusbar: statusbar_key(),
-            seed_toggle: seed_key(),
-            rule_toggle: rule_key(),
+            randomize_seed: seed_key(),
+            randomize_rule: rule_key(),
+            randomize: randomize_key(),
         }
     }
 }
@@ -514,8 +518,8 @@ impl Config {
             ("config_reload", &self.controls.config_reload),
             ("help", &self.controls.help),
             ("statusbar", &self.controls.statusbar),
-            ("seed_toggle", &self.controls.seed_toggle),
-            ("rule_toggle", &self.controls.rule_toggle),
+            ("randomize_seed", &self.controls.randomize_seed),
+            ("randomize_rule", &self.controls.randomize_rule),
         ];
 
         for (name, key) in &controls {

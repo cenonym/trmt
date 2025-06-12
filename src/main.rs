@@ -145,7 +145,7 @@ fn run_app<B: ratatui::backend::Backend>(
                                 },
                             }
                         },
-                        s if s == app.config.controls.seed_toggle => {
+                        s if s == app.config.controls.randomize_seed => {
                             key_pressed = true;
                             // Generate random seed and reset
                             let random_seed = app.machine.generate_random_seed();
@@ -155,7 +155,7 @@ fn run_app<B: ratatui::backend::Backend>(
                                 app.machine.reset_clean(&app.config);
                             }
                         },
-                        s if s == app.config.controls.rule_toggle => {
+                        s if s == app.config.controls.randomize_rule => {
                             key_pressed = true;
                             // Generate random rule and reset
                             let random_rule = Config::generate_random_rule();
@@ -165,7 +165,7 @@ fn run_app<B: ratatui::backend::Backend>(
                                 app.machine.reset_clean(&app.config);
                             }
                         },
-                        "R" => {
+                        s if s == app.config.controls.randomize => {
                             key_pressed = true;
                             // Generate random seed and rule, then reset
                             let random_seed = app.machine.generate_random_seed();
