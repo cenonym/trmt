@@ -51,14 +51,20 @@ paru -S trmt
 <br>
 
 **Using Flakes (Nix)**
-Add `trmt` to your flake as an input, and then add it to your packages:
+
+Add `trmt` to your flake as an input,
 ```nix
 {
   inputs = {
     ... # other inputs
     trmt.url = "github:cenonym/trmt";
   };
+}
+```
 
+Then, you can add `inputs.trmt.packages.${pkgs.systems}.default` directly into your `environment.systemPackages` or `home.packages`:
+```nix
+{
   outputs = { nixpkgs, trmt, ... }: {
     nixosConfigurations.<mysystem> = nixpkgs.lib.nixosSystem {
       modules = [
@@ -70,6 +76,57 @@ Add `trmt` to your flake as an input, and then add it to your packages:
   };
 }
 ```
+
+<details>
+<summary>Installing and configuring trmt with home-manager</summary>
+
+You can also use the `home-manager` module to install and configure `trmt`. First, you need to add `inputs.trmt.homeManagerModules.default` to your imports in your `home-manager` config, and then you can directly configure `trmt` (it will create the `$XDG_CONFIG_HOME/.config/trmt/config.toml` file for you):
+```nix
+{inputs, ...}: {
+  imports = [
+    inputs.trmt.homeManagerModules.default
+  ];
+
+  programs.trmt = {
+    enable = true;
+    config = {
+      simulation = {
+        heads = 3;
+        rule = "RL";
+        speed_ms = 20;
+        trail_length = 30;
+        color_cells = true;
+        seed = "";
+      };
+      display = {
+        colors = ["rgb(241, 113, 54)" "#45a8e9" "229"];
+        fade_trail_color = "";
+        state_based_colors = false;
+        live_colors = false;
+        head_char = ["██"];
+        trail_char = ["▓▓"];
+        cell_char = "░░";
+        randomize_heads = false;
+        randomize_trails = false;
+      };
+      controls = {
+        quit = "q";
+        toggle = " ";
+        reset = "r";
+        faster = "+";
+        slower = "-";
+        config_reload = "c";
+        help = "h";
+        statusbar = "b";
+        seed_toggle = "s";
+        rule_toggle = "n";
+      };
+    };
+  };
+}
+```
+
+</details>
 <br>
 
 **Install from source**
