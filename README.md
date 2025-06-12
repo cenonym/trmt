@@ -285,7 +285,7 @@ A big thanks to:
 - Developers of [cmatrix](https://github.com/abishekvashok/cmatrix), [pipes.sh](https://github.com/pipeseroni/pipes.sh), [asciiquarium](https://github.com/cmatsuoka/asciiquarium) and the like for inspiring the creation of **trmt**.
 - [Ferkel](https://commons.wikimedia.org/wiki/User:Ferkel) on Wikipedia for [turmite rule notations](https://commons.wikimedia.org/wiki/File:Turmite-181181121010-10211.png) used in testing and development of the **trmt** rule syntax.
 - [orhun](https://github.com/orhun) for packaging **trmt** on AUR
-- [yunusey](https://github.com/yunusey) for adding Nix flake support
+- [yunusey](https://github.com/yunusey) for adding Nix flake and home-manager support
 
 <br>
 

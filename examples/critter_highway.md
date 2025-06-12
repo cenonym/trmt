@@ -1,5 +1,5 @@
 # critter highway
-![critter highway](/assets/trmt_v0_3_0_critter_highway_example.png)
+![critter highway](/assets/trmt_v0_3_0_critter_highway_example.webp)
 
 ### Config
 ```toml

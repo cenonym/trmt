@@ -1,5 +1,5 @@
 # dotgrid
-![dotgrid](/assets/trmt_v0_3_0_dotgird_example.png)
+![dotgrid](/assets/trmt_v0_3_0_dotgird_example.webp)
 
 ### Config
 ```toml
