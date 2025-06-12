@@ -25,13 +25,13 @@ Running **trmt** will start a simulation with the [default config](#configuratio
 
 ### Features
 - Full Unicode support
-- Up to 256 simultaneous heads
-- Full color support: 16-color, 256-color, and RGB/hex
-- Randomized rule generator with roughly **10^15** possible rules
-- Deterministic seed-based simulation for reproducible patterns
-- Highly configurable parameters for simulation, display and keybinds
-- Several rule formats for various degrees of complexity
-- Real-time interaction with configurable keybinds
+- Up to **256 simultaneous heads**
+- **Full color support**: 16-color, 256-color, and RGB/hex
+- **Randomized rule generator** with roughly `10^15` possible rules
+- **Deterministic seed-based simulation** for reproducible patterns
+- **Highly configurable** parameters for simulation, display and keybinds
+- **Several rule formats** for various degrees of complexity
+- **Real-time interaction** with configurable keybinds
 - Toroidal grid with seamless wrapping
 <br>
 
@@ -160,8 +160,9 @@ https://github.com/user-attachments/assets/eefc272b-09b2-4c9c-93dc-984c1ae60ed0
 | `+` | Increase simulation speed |
 | `-` | Decrease simulation speed |
 | `c` | Reload from config (clears runtime state) |
-| `s` | Toggle seed, saves/clears current seed in XDG state directory |
-| `n` | Toggle rule, saves/clears current rule in XDG state directory |
+| `s` | Generate random seed and reset |
+| `n` | Generate random rule and reset |
+| `R` | Generate random seed and rule, then reset |
 | `1-9` | Set head count (1, 2, 4, 8, 16, 32, 64, 128, 256) |
 
 <br>
@@ -208,18 +209,15 @@ slower = "-"                        # Decrease simulation speed
 config_reload = "c"                 # Reload config
 help = "h"                          # Toggle help overlay
 statusbar = "b"                     # Toggle statusbar overlay
-seed_toggle = "s"                   # Toggle seed
-rule_toggle = "n"                   # Toggle rule
+seed_toggle = "s"                   # Generate random seed
+rule_toggle = "n"                   # Generate random rule
 ```
 > [!NOTE]
-> When seed or rule is set, they will be used regardless of `seed_toggle` and `rule_toggle`.
+> State takes precedence over config and is used across sessions. Use `c` to clear states and reload config defaults, `s`/`n` to generate new random seeds and rules respectively.
 
 <br>
 
 #### Rules
-> [!TIP]
-> If no rule is set in your config `rule = ""`, **trmt** will automatically generate random rules on startup and reset. This provides an easy way to explore different patterns without needing to understand rule syntax.
-
 Rules in **trmt** are what defines how the simulation will play out, and how the heads will behave. **trmt** provides you with tools to simulate everything from very basic sequential rules, all the way up to academic-level notation *(don't quote me on this)*.
 
 A rule consists of several states, and a state holds specific instructions on how a head should move when encountered. You can theoretically have several hundred states in a rule, but many of the most interesting patterns will appear with just 3-5 states.
