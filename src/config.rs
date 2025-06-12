@@ -16,6 +16,8 @@ pub struct Config {
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct SimulationConfig {
+    #[serde(default = "autoplay")]
+    pub autoplay: bool,
     #[serde(default = "heads")]
     pub heads: usize,
     #[serde(default = "rule")]
@@ -101,6 +103,7 @@ pub struct ControlsConfig {
 }
 
 // Default config
+fn autoplay() -> bool { true }
 fn heads() -> usize { 6 }
 fn rule() -> String { "RL".to_string() }
 fn speed() -> f64 { 50.0 }
@@ -143,6 +146,7 @@ fn rule_key() -> String { "n".to_string() }
 impl Default for SimulationConfig {
     fn default() -> Self {
         Self {
+            autoplay: autoplay(),
             heads: heads(),
             rule: rule(),
             speed_ms: speed(),

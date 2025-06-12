@@ -178,6 +178,7 @@ https://github.com/user-attachments/assets/eefc272b-09b2-4c9c-93dc-984c1ae60ed0
 #### Config options
 ```toml
 [simulation]
+autoplay = true                     # If true, simulation starts running automatically on launch, reset and config reload
 heads = 3                           # Number of heads on initialization
 rule = "RL"                         # Rules for the simulation
 speed_ms = 20                       # Simulation speed in milliseconds

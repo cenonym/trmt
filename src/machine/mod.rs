@@ -44,7 +44,7 @@ impl TuringMachine {
             rule_string: rule_string.to_string(),
             rules: BTreeMap::new(),
             num_heads: num_heads.min(256),
-            running: true,
+            running: config.simulation.autoplay,
             steps: 0,
             current_seed: String::new(),
             grid_width: 100,
@@ -255,7 +255,7 @@ impl TuringMachine {
         let _ = Config::save_current_seed(&self.current_seed);
         let _ = Config::save_current_rule(&self.rule_string);
         
-        self.running = false;
+        self.running = config.simulation.autoplay;
         self.steps = 0;
         self.grid.clear();
         self.dirty_cells.clear();
@@ -263,7 +263,7 @@ impl TuringMachine {
     }
 
     pub fn reset_clean(&mut self, config: &Config) {
-        self.running = false;
+        self.running = config.simulation.autoplay;
         self.steps = 0;
         self.grid.clear();
         self.dirty_cells.clear();
