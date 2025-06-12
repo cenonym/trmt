@@ -152,7 +152,7 @@ impl TuringMachine {
         color
     }
 
-    fn generate_random_seed(&self) -> String {
+    pub fn generate_random_seed(&self) -> String {
         use rand::distributions::Alphanumeric;
         let mut rng = rand::thread_rng();
         (0..8)
@@ -252,15 +252,23 @@ impl TuringMachine {
 
     // Save runtime state and reset
     pub fn reset(&mut self, config: &Config) {
-    let _ = Config::save_current_seed(&self.current_seed);
-    let _ = Config::save_current_rule(&self.rule_string);
-    
-    self.running = false;
-    self.steps = 0;
-    self.grid.clear();
-    self.dirty_cells.clear();
-    self.spawn_heads(config);
-}
+        let _ = Config::save_current_seed(&self.current_seed);
+        let _ = Config::save_current_rule(&self.rule_string);
+        
+        self.running = false;
+        self.steps = 0;
+        self.grid.clear();
+        self.dirty_cells.clear();
+        self.spawn_heads(config);
+    }
+
+    pub fn reset_clean(&mut self, config: &Config) {
+        self.running = false;
+        self.steps = 0;
+        self.grid.clear();
+        self.dirty_cells.clear();
+        self.spawn_heads(config);
+    }
 
     pub fn set_head_count(&mut self, count: usize, config: &Config) {
         self.num_heads = count.min(256);

@@ -140,6 +140,33 @@ fn run_app<B: ratatui::backend::Backend>(
                                 },
                             }
                         },
+                        s if s == app.config.controls.seed_toggle => {
+                            // Generate random seed and reset
+                            let random_seed = app.machine.generate_random_seed();
+                            if let Err(e) = Config::save_current_seed(&random_seed) {
+                                app.show_error(format!("Failed to save random seed: {}", e));
+                            } else {
+                                app.machine.reset_clean(&app.config);
+                            }
+                        },
+                        s if s == app.config.controls.rule_toggle => {
+                            // Generate random rule and reset
+                            let random_rule = Config::generate_random_rule();
+                            if let Err(e) = Config::save_current_rule(&random_rule) {
+                                app.show_error(format!("Failed to save random rule: {}", e));
+                            } else {
+                                app.machine.reset_clean(&app.config);
+                            }
+                        },
+                        "R" => {
+                            // Generate random seed and rule, then reset
+                            let random_seed = app.machine.generate_random_seed();
+                            let random_rule = Config::generate_random_rule();
+                            match (Config::save_current_seed(&random_seed), Config::save_current_rule(&random_rule)) {
+                                (Ok(_), Ok(_)) => app.machine.reset_clean(&app.config),
+                                (Err(e), _) | (_, Err(e)) => app.show_error(format!("Failed to save random parameters: {}", e)),
+                            }
+                        },
                         "1" => app.machine.set_head_count(1, &app.config),
                         "2" => app.machine.set_head_count(2, &app.config),
                         "3" => app.machine.set_head_count(4, &app.config),
@@ -151,16 +178,6 @@ fn run_app<B: ratatui::backend::Backend>(
                         "9" => app.machine.set_head_count(256, &app.config),
                         s if s == app.config.controls.help => app.show_help = !app.show_help,
                         s if s == app.config.controls.statusbar => app.show_statusbar = !app.show_statusbar,
-                        s if s == app.config.controls.seed_toggle => {
-                            if let Err(e) = Config::toggle_runtime_seed(&app.machine.current_seed) {
-                                app.show_error(format!("Failed to toggle seed: {}", e));
-                            }
-                        },
-                        s if s == app.config.controls.rule_toggle => {
-                            if let Err(e) = Config::toggle_runtime_rule(&app.machine.rule_string) {
-                                app.show_error(format!("Failed to toggle rule: {}", e));
-                            }
-                        },
                         "x" => app.clear_overlays(),
                         _ => {}
                     }

@@ -297,21 +297,22 @@ impl Config {
     }
 
     pub fn get_effective_seed(&self) -> Option<String> {
-        // Config takes precedence over runtime state
-        if let Some(ref config_seed) = self.simulation.seed {
-            if !config_seed.is_empty() {
-                return Some(config_seed.clone());
-            }
-        }
-        
-        // Fall back to runtime state
         let state_path = Self::state_dir().join("current_seed");
+        
+        // State takes precedence when it exists
         if state_path.exists() {
             if let Ok(seed) = std::fs::read_to_string(&state_path) {
                 let trimmed = seed.trim();
                 if !trimmed.is_empty() {
                     return Some(trimmed.to_string());
                 }
+            }
+        }
+        
+        // Fall back to config
+        if let Some(ref config_seed) = self.simulation.seed {
+            if !config_seed.is_empty() {
+                return Some(config_seed.clone());
             }
         }
         
@@ -333,18 +334,6 @@ impl Config {
         if state_path.exists() {
             std::fs::remove_file(&state_path)?;
         }
-        Ok(())
-    }
-
-    pub fn toggle_runtime_seed(current_seed: &str) -> Result<(), Box<dyn Error>> {
-        let state_path = Self::state_dir().join("current_seed");
-        
-        if state_path.exists() {
-            Self::clear_current_seed()?;
-        } else {
-            Self::save_current_seed(current_seed)?;
-        }
-        
         Ok(())
     }
 
@@ -405,7 +394,7 @@ impl Config {
     }
     
     fn generate_explicit_rule(rng: &mut impl Rng) -> String {
-        let directions = ["L", "R", "U", "D"];
+        let directions = ["L", "R"];
         let combos = rng.gen_range(2..=4);
         (0..combos)
             .map(|i| {
@@ -429,13 +418,9 @@ impl Config {
 
     // Rule state management
     pub fn get_effective_rule(&self) -> String {
-        // Config takes priority over runtime state
-        if !self.simulation.rule.is_empty() {
-            return self.simulation.rule.clone();
-        }
-        
-        // Fall back to runtime state
         let state_path = Self::state_dir().join("current_rule");
+        
+        // State takes precedence when it exists
         if state_path.exists() {
             if let Ok(rule) = std::fs::read_to_string(&state_path) {
                 let trimmed = rule.trim();
@@ -443,6 +428,11 @@ impl Config {
                     return trimmed.to_string();
                 }
             }
+        }
+        
+        // Fall back to config
+        if !self.simulation.rule.is_empty() {
+            return self.simulation.rule.clone();
         }
         
         // Generate random rule if both are empty
@@ -464,18 +454,6 @@ impl Config {
         if state_path.exists() {
             std::fs::remove_file(&state_path)?;
         }
-        Ok(())
-    }
-
-    pub fn toggle_runtime_rule(current_rule: &str) -> Result<(), Box<dyn Error>> {
-        let state_path = Self::state_dir().join("current_rule");
-        
-        if state_path.exists() {
-            Self::clear_current_rule()?;
-        } else {
-            Self::save_current_rule(current_rule)?;
-        }
-        
         Ok(())
     }
 
