@@ -115,7 +115,7 @@ impl TuringMachine {
             let x = rng.gen_range(0..self.grid_width.max(1));
             let y = rng.gen_range(0..self.grid_height.max(1));
             let mut head = Head::new(x, y, Color::White);
-            head.color = config.display.get_head_color(i, config);
+            head.color = config.display.get_head_color(i);
             self.heads.push(head);
         }
         
@@ -138,7 +138,7 @@ impl TuringMachine {
             .collect();
         
         for (i, head) in self.heads.iter_mut().enumerate() {
-            head.color = config.display.get_head_color(i, config);
+            head.color = config.display.get_head_color(i);
         }
     }
 
@@ -212,9 +212,9 @@ impl TuringMachine {
                 
                 // Live head color
                 let preview_head_color = if config.display.state_based_colors && config.display.live_colors {
-                    config.display.get_cell_color(transition.new_cell_state, i, config)
+                    config.display.get_cell_color(transition.new_cell_state, i)
                 } else {
-                    config.display.get_head_color(i, config)
+                    config.display.get_head_color(i)
                 };
                 
                 self.updates_buffer.push((
@@ -228,7 +228,7 @@ impl TuringMachine {
                 ));
                 
                 // Use state-based or head-based coloring
-                let cell_color = config.display.get_cell_color(transition.new_cell_state, i, config);
+                let cell_color = config.display.get_cell_color(transition.new_cell_state, i);
                 self.grid.set_cell(head.x, head.y, transition.new_cell_state, cell_color, config.display.state_based_colors);
                 self.dirty_cells.insert((head.x, head.y));
             }
