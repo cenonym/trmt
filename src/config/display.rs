@@ -1,6 +1,8 @@
 use ratatui::style::Color;
 use serde::{Deserialize, Serialize};
 use super::validation;
+use crate::machine::rules::Direction;
+
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct DisplayConfig {
     #[serde(default = "keycast")]
@@ -17,6 +19,8 @@ pub struct DisplayConfig {
     pub randomize_heads: bool,
     #[serde(default = "randomize_trails")]
     pub randomize_trails: bool,
+    #[serde(default = "direction_based_chars")]
+    pub direction_based_chars: bool,
     #[serde(default = "head_char")]
     pub head_char: Vec<String>,
     #[serde(default = "trail_char")]
@@ -70,6 +74,7 @@ fn trail_char() -> Vec<String> {
     vec!["▓▓".to_string()] 
 }
 fn cell_char() -> String { "░░".to_string() }
+fn direction_based_chars() -> bool { false }
 fn randomize_heads() -> bool { false }
 fn randomize_trails() -> bool { false }
 fn fade_trail_color() -> String { String::new() }
@@ -87,6 +92,7 @@ impl Default for DisplayConfig {
             cell_char: cell_char(),
             randomize_heads: randomize_heads(),
             randomize_trails: randomize_trails(),
+            direction_based_chars: direction_based_chars(),
             head_char_data: Vec::new(),
             trail_char_data: Vec::new(),
             cell_char_data: CharData::new(""),
@@ -153,6 +159,56 @@ impl DisplayConfig {
             } else {
                 Color::White
             }
+        }
+    }
+
+    pub fn get_head_char_index(&self, head_index: usize, direction: Direction, previous_direction: Option<Direction>) -> usize {
+        if self.direction_based_chars {
+            self.get_direction_char_index(direction, previous_direction)
+        } else {
+            head_index % self.head_char_data.len()
+        }
+    }
+
+    pub fn get_direction_char_index(&self, current_dir: Direction, prev_dir: Option<Direction>) -> usize {
+        match (prev_dir, current_dir) {
+            // Turns
+            (Some(Direction::Up), Direction::Right) => 0,           //┌
+            (Some(Direction::Left), Direction::Down) => 0,
+            (Some(Direction::Up), Direction::Left) => 1,            // ┐
+            (Some(Direction::Right), Direction::Down) => 1,
+            (Some(Direction::Down), Direction::Right) => 2,         // └ 
+            (Some(Direction::Left), Direction::Up) => 2,
+            (Some(Direction::Down), Direction::Left) => 3,          // ┘
+            (Some(Direction::Right), Direction::Up) => 3,
+            
+            // Straight
+            (Some(Direction::Up), Direction::Up) => 4,              // │
+            (Some(Direction::Up), Direction::Down) => 4,
+            (Some(Direction::Down), Direction::Down) => 4,
+            (Some(Direction::Down), Direction::Up) => 4,
+            (Some(Direction::Left), Direction::Left) => 5,          // ──
+            (Some(Direction::Left), Direction::Right) => 5,
+            (Some(Direction::Right), Direction::Right) => 5,
+            (Some(Direction::Right), Direction::Left) => 5,
+
+            // Diagonals
+            (Some(Direction::UpRight), Direction::UpRight) => 6,    // ⟋
+            (Some(Direction::UpRight), Direction::DownLeft) => 6,
+            (Some(Direction::DownLeft), Direction::DownLeft) => 6,
+            (Some(Direction::DownLeft), Direction::UpRight) => 6,
+            (Some(Direction::UpLeft), Direction::UpLeft) => 7,      // ⟍
+            (Some(Direction::UpLeft), Direction::DownRight) => 7,
+            (Some(Direction::DownRight), Direction::DownRight) => 7,
+            (Some(Direction::DownRight), Direction::UpLeft) => 7,
+
+            // Diagonal turns
+            (Some(Direction::UpRight), Direction::DownRight) => 8,  // ⟋⟍
+            (Some(Direction::UpLeft), Direction::DownLeft) => 8,
+            (Some(Direction::DownRight), Direction::UpRight) => 9,  // ⟍⟋
+            (Some(Direction::DownLeft), Direction::UpLeft) => 9,
+            
+            _ => 5,
         }
     }
 }

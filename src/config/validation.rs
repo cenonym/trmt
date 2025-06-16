@@ -9,6 +9,25 @@ pub fn validate_config(config: &Config) -> Result<(), Vec<String>> {
         errors.push(format!("simulation.rule: {}", e));
     }
 
+    // Validate char modes
+    let head_modes = [
+        config.display.direction_based_chars,
+        config.display.randomize_heads,
+    ].iter().filter(|&&x| x).count();
+    
+    let trail_modes = [
+        config.display.direction_based_chars,
+        config.display.randomize_trails,
+    ].iter().filter(|&&x| x).count();
+    
+    if head_modes > 1 {
+        errors.push("display: only one of direction_based_chars or randomize_heads can be true".to_string());
+    }
+    
+    if trail_modes > 1 {
+        errors.push("display: only one of direction_based_chars or randomize_trails can be true".to_string());
+    }
+
     // Validate colors
     for (i, color) in config.display.colors.iter().enumerate() {
         if let Err(e) = validate_color(color) {
@@ -23,10 +42,6 @@ pub fn validate_config(config: &Config) -> Result<(), Vec<String>> {
 
     if config.simulation.speed_ms <= 0.0 {
         errors.push("simulation.speed_ms: must be positive".to_string());
-    }
-
-    if config.simulation.trail_length == 0 {
-        errors.push("simulation.trail_length: must be at least 1".to_string());
     }
 
     // Validate display characters

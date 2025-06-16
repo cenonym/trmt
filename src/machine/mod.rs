@@ -8,6 +8,7 @@ use std::collections::BTreeMap;
 use rand::{Rng, SeedableRng};
 use rand::rngs::StdRng;
 use crate::config::Config;
+use crate::machine::rules::Direction;
 
 pub use rules::{StateTransition, TurnDirection};
 pub use heads::Head;
@@ -122,9 +123,29 @@ impl TuringMachine {
         self.generate_random_sequences(config);
     }
 
-    pub fn get_head_char_index(&self, head_index: usize) -> usize {
-        let sequence_index = (self.steps.wrapping_add(head_index as u64)) as usize % self.sequence_length;
-        self.head_char_sequence[sequence_index]
+    // Calculate char based on direction
+    fn get_head_char(&self, head: &Head, new_direction: Direction, config: &Config) -> Option<String> {
+        if config.display.direction_based_chars {
+            let char_index = config.display.get_direction_char_index(new_direction, Some(head.direction));
+            let index = char_index % config.display.head_char.len();
+            Some(config.display.head_char[index].clone())
+        } else {
+            None
+        }
+    }
+
+    pub fn get_head_char_index(&self, head_index: usize, config: &Config) -> usize {
+        if config.display.randomize_heads {
+            let sequence_index = (self.steps.wrapping_add(head_index as u64)) as usize % self.sequence_length;
+            self.head_char_sequence[sequence_index] % config.display.head_char_data.len()
+        } else {
+            let head = &self.heads[head_index];
+            config.display.get_head_char_index(
+                head_index, 
+                head.direction, 
+                head.previous_direction
+            )
+        }
     }
     
     pub fn get_trail_char_index(&self, head_index: usize, trail_index: usize) -> usize {
@@ -210,8 +231,7 @@ impl TuringMachine {
                 let wrapped_x = ((new_x % width) + width) % width;
                 let wrapped_y = ((new_y % height) + height) % height;
                 
-                // Live head color
-                let preview_head_color = if config.display.state_based_colors && config.display.live_colors {
+                let live_colors_color = if config.display.state_based_colors && config.display.live_colors {
                     config.display.get_cell_color(transition.new_cell_state, i)
                 } else {
                     config.display.get_head_color(i)
@@ -224,12 +244,20 @@ impl TuringMachine {
                     transition.new_internal_state,
                     wrapped_x,
                     wrapped_y,
-                    preview_head_color,
+                    live_colors_color,
                 ));
                 
-                // Use state-based or head-based coloring
+                let display_char = self.get_head_char(head, new_direction, config);
+        
                 let cell_color = config.display.get_cell_color(transition.new_cell_state, i);
-                self.grid.set_cell(head.x, head.y, transition.new_cell_state, cell_color, config.display.state_based_colors);
+                self.grid.set_cell(
+                    head.x, 
+                    head.y, 
+                    transition.new_cell_state, 
+                    cell_color, 
+                    display_char,
+                    config.display.state_based_colors
+                );
                 self.dirty_cells.insert((head.x, head.y));
             }
         }
@@ -237,13 +265,18 @@ impl TuringMachine {
         let updates = self.updates_buffer.clone();
         for (i, _, turn_direction, new_internal_state, x, y, live_color) in updates {
             let head = &mut self.heads[i];
-            head.direction = turn_direction.apply(head.direction);
+            let new_direction = turn_direction.apply(head.direction);
+            head.set_direction(new_direction);
             head.internal_state = new_internal_state;
             head.color = live_color;
             head.move_to(x, y, config.simulation.trail_length);
         }
         
         self.steps += 1;
+    }
+
+    pub fn tape_chars(&self) -> &FxHashMap<(i32, i32), String> {
+        &self.grid.tape_chars
     }
 
     pub fn toggle_running(&mut self) {
