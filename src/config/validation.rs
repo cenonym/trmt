@@ -35,6 +35,13 @@ pub fn validate_config(config: &Config) -> Result<(), Vec<String>> {
         }
     }
 
+    // Validate fade_trail_color if not empty
+    if !config.display.fade_trail_color.is_empty() {
+        if let Err(e) = validate_color(&config.display.fade_trail_color) {
+            errors.push(format!("display.fade_trail_color: {}", e));
+        }
+    }
+
     // Validate numeric ranges
     if config.simulation.heads == 0 || config.simulation.heads > 256 {
         errors.push("simulation.heads: must be between 1 and 256".to_string());
