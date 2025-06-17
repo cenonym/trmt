@@ -109,6 +109,9 @@ impl TuringMachine {
         self.parse_rules(&effective_rule);
         self.rule_string = effective_rule;
         
+        // Get initial direction from rule
+        let initial_direction = self.get_initial_direction();
+        
         let seed_hash = self.hash_seed(&seed);
         let mut rng = StdRng::seed_from_u64(seed_hash);
 
@@ -116,6 +119,7 @@ impl TuringMachine {
             let x = rng.gen_range(0..self.grid_width.max(1));
             let y = rng.gen_range(0..self.grid_height.max(1));
             let mut head = Head::new(x, y, Color::White);
+            head.direction = initial_direction;
             head.color = config.display.get_head_color(i);
             self.heads.push(head);
         }
@@ -151,6 +155,14 @@ impl TuringMachine {
     pub fn get_trail_char_index(&self, head_index: usize, trail_index: usize) -> usize {
         let sequence_index = (self.steps.wrapping_add(head_index as u64).wrapping_add(trail_index as u64 * 17)) as usize % self.sequence_length;
         self.trail_char_sequence[sequence_index]
+    }
+
+    fn get_initial_direction(&self) -> Direction {
+        if let Some(transition) = self.rules.get(&(0, 'A')) {
+            transition.turn_direction.apply(Direction::Up)
+        } else {
+            Direction::Up
+        }
     }
 
     pub fn update_colors(&mut self, config: &Config) {
