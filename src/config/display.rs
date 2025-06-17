@@ -164,7 +164,8 @@ impl DisplayConfig {
 
     pub fn get_head_char_index(&self, head_index: usize, direction: Direction, previous_direction: Option<Direction>) -> usize {
         if self.direction_based_chars {
-            self.get_direction_char_index(direction, previous_direction)
+            let index = self.get_direction_char_index(direction, previous_direction);
+            index % self.head_char_data.len()
         } else {
             head_index % self.head_char_data.len()
         }
@@ -172,25 +173,25 @@ impl DisplayConfig {
 
     pub fn get_direction_char_index(&self, current_dir: Direction, prev_dir: Option<Direction>) -> usize {
         match (prev_dir, current_dir) {
-            // Turns
-            (Some(Direction::Up), Direction::Right) => 0,           //┌
-            (Some(Direction::Left), Direction::Down) => 0,
-            (Some(Direction::Up), Direction::Left) => 1,            // ┐
-            (Some(Direction::Right), Direction::Down) => 1,
-            (Some(Direction::Down), Direction::Right) => 2,         // └ 
-            (Some(Direction::Left), Direction::Up) => 2,
-            (Some(Direction::Down), Direction::Left) => 3,          // ┘
-            (Some(Direction::Right), Direction::Up) => 3,
-            
             // Straight
-            (Some(Direction::Up), Direction::Up) => 4,              // │
-            (Some(Direction::Up), Direction::Down) => 4,
-            (Some(Direction::Down), Direction::Down) => 4,
-            (Some(Direction::Down), Direction::Up) => 4,
-            (Some(Direction::Left), Direction::Left) => 5,          // ──
-            (Some(Direction::Left), Direction::Right) => 5,
-            (Some(Direction::Right), Direction::Right) => 5,
-            (Some(Direction::Right), Direction::Left) => 5,
+            (Some(Direction::Up), Direction::Up) => 0,              // │
+            (Some(Direction::Up), Direction::Down) => 0,
+            (Some(Direction::Down), Direction::Down) => 0,
+            (Some(Direction::Down), Direction::Up) => 0,
+            (Some(Direction::Left), Direction::Left) => 1,          // ──
+            (Some(Direction::Left), Direction::Right) => 1,
+            (Some(Direction::Right), Direction::Right) => 1,
+            (Some(Direction::Right), Direction::Left) => 1,
+
+            // Turns
+            (Some(Direction::Up), Direction::Right) => 2,           //┌
+            (Some(Direction::Left), Direction::Down) => 2,
+            (Some(Direction::Up), Direction::Left) => 3,            // ┐
+            (Some(Direction::Right), Direction::Down) => 3,
+            (Some(Direction::Down), Direction::Right) => 4,         // └ 
+            (Some(Direction::Left), Direction::Up) => 4,
+            (Some(Direction::Down), Direction::Left) => 5,          // ┘
+            (Some(Direction::Right), Direction::Up) => 5,
 
             // Diagonals
             (Some(Direction::UpRight), Direction::UpRight) => 6,    // ⟋
@@ -208,7 +209,7 @@ impl DisplayConfig {
             (Some(Direction::DownRight), Direction::UpRight) => 9,  // ⟍⟋
             (Some(Direction::DownLeft), Direction::UpLeft) => 9,
             
-            _ => 5,
+            _ => 0,
         }
     }
 }

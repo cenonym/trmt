@@ -247,7 +247,12 @@ impl TuringMachine {
                     live_colors_color,
                 ));
                 
-                let display_char = self.get_head_char(head, new_direction, config);
+                let display_char = if config.simulation.color_cells ||
+                (config.display.direction_based_chars && config.simulation.trail_length > 0) {
+                    self.get_head_char(head, new_direction, config)
+                } else {
+                    None
+                };
         
                 let cell_color = config.display.get_cell_color(transition.new_cell_state, i);
                 self.grid.set_cell(

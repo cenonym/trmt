@@ -53,7 +53,7 @@ fn render_trails(f: &mut Frame, app: &App, area: Rect, width: i32, height: i32) 
             let buffer_y = area.y + grid_y as u16;
             
             let trail_char_data = if app.config.display.direction_based_chars {
-                // Use stored direction from cell
+                // Use stored cell character if available
                 if let Some(stored_char) = app.machine.tape_chars().get(&(trail_x, trail_y)) {
                     if let Some(index) = app.config.display.head_char.iter().position(|c| c == stored_char) {
                         &app.config.display.head_char_data[index]
