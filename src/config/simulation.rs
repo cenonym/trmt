@@ -48,12 +48,12 @@ impl SimulationConfig {
 
     // Random rule generation
     pub fn generate_random_rule() -> String {
-        let mut rng = rand::thread_rng();
+        let mut rng = rand::rng();
         
         // Generate multiple rules and pick the most promising
         let mut candidates = Vec::new();
         for _ in 0..5 {
-            let rule = match rng.gen_range(0..10) {
+            let rule = match rng.random_range(0..10) {
                 0..=6 => Self::generate_basic_rule(&mut rng),        // 70%
                 7..=8 => Self::generate_multi_state_rule(&mut rng),  // 20%
                 _ => Self::generate_explicit_rule(&mut rng),         // 10%
@@ -68,13 +68,13 @@ impl SimulationConfig {
     }
     
     fn generate_basic_rule(rng: &mut impl Rng) -> String {
-        let length = rng.gen_range(2..=9);
+        let length = rng.random_range(2..=9);
         let mut rule = String::with_capacity(length);
-        let mut left_count = 0;
-        let mut right_count = 0;
+        let mut left_count: i32 = 0;
+        let mut right_count: i32 = 0;
         
         for _ in 0..length {
-            let dir = Self::DIRECTIONS[rng.gen_range(0..Self::DIRECTIONS.len())];
+            let dir = Self::DIRECTIONS[rng.random_range(0..Self::DIRECTIONS.len())];
             rule.push_str(dir);
             
             // Track L/R balance
@@ -83,7 +83,7 @@ impl SimulationConfig {
         }
         
         // If severely imbalanced, add a balancing direction
-        if (left_count as i32 - right_count as i32).abs() > length as i32 / 2 {
+        if (left_count - right_count).abs() > length as i32 / 2 {
             let balance_dir = if left_count > right_count { "R" } else { "L" };
             rule.push_str(balance_dir);
         }
@@ -92,7 +92,7 @@ impl SimulationConfig {
     }
     
     fn generate_multi_state_rule(rng: &mut impl Rng) -> String {
-        let states = rng.gen_range(2..=3);
+        let states = rng.random_range(2..=3);
         let mut state_rules = Vec::<String>::with_capacity(states);
         
         for i in 0..states {
@@ -102,7 +102,7 @@ impl SimulationConfig {
                 Self::generate_contrasting_rule(rng, &state_rules[0])
             };
             
-            let rule_with_transition = if rng.gen_bool(0.5) && states > 1 {
+            let rule_with_transition = if rng.random_bool(0.5) && states > 1 {
                 let target = (i + 1) % states;
                 format!("{}>{}", base_rule, target)
             } else {
@@ -117,7 +117,7 @@ impl SimulationConfig {
     
     fn generate_contrasting_rule(rng: &mut impl Rng, base_rule: &str) -> String {
         let has_mostly_left = base_rule.matches('L').count() > base_rule.matches('R').count();
-        let length = rng.gen_range(2..=4);
+        let length = rng.random_range(2..=4);
         let mut rule = String::with_capacity(length);
         
         // Filter directions
@@ -128,7 +128,7 @@ impl SimulationConfig {
         };
         
         for _ in 0..length {
-            let dir = contrast_dirs[rng.gen_range(0..contrast_dirs.len())];
+            let dir = contrast_dirs[rng.random_range(0..contrast_dirs.len())];
             rule.push_str(dir);
         }
         
@@ -136,29 +136,29 @@ impl SimulationConfig {
     }
     
     fn generate_explicit_rule(rng: &mut impl Rng) -> String {
-        let states = rng.gen_range(2..=3);
+        let states = rng.random_range(2..=3);
         let mut transitions = Vec::with_capacity(states * 2);
         
-        let multi_transition_states = rng.gen_range(1..=2.min(states));
+        let multi_transition_states = rng.random_range(1..=2.min(states));
         let mut has_multi = HashSet::new();
         
         while has_multi.len() < multi_transition_states {
-            has_multi.insert(rng.gen_range(0..states));
+            has_multi.insert(rng.random_range(0..states));
         }
         
         for i in 0..states {
             if has_multi.contains(&i) {
                 for _ in 0..2 {
-                    let dir = Self::DIRECTIONS[rng.gen_range(0..Self::DIRECTIONS.len())];
+                    let dir = Self::DIRECTIONS[rng.random_range(0..Self::DIRECTIONS.len())];
                     let next_state = if i == states - 1 { 
-                        rng.gen_range(0..states) 
+                        rng.random_range(0..states) 
                     } else { 
                         (i + 1) % states 
                     };
                     transitions.push(format!("{}>{}", dir, next_state));
                 }
             } else {
-                let dir = Self::DIRECTIONS[rng.gen_range(0..Self::DIRECTIONS.len())];
+                let dir = Self::DIRECTIONS[rng.random_range(0..Self::DIRECTIONS.len())];
                 let next_state = (i + 1) % states;
                 transitions.push(format!("{}>{}", dir, next_state));
             }
@@ -173,11 +173,11 @@ impl SimulationConfig {
         
         // Penalize rules that are too short or too long
         let total_length: usize = rule.split(':').map(|s| s.len()).sum();
-        if total_length >= 4 && total_length <= 12 {
+        if (4..=12).contains(&total_length) {
             score += 10;
         }
         
-        // Reward balanced L/R ratios (avoid spinning)
+        // Reward balanced turn ratios
         let l_count = rule.matches('L').count() as i32;
         let r_count = rule.matches('R').count() as i32;
         let balance = 5 - (l_count - r_count).abs().min(5);

@@ -81,11 +81,11 @@ impl TuringMachine {
         let mut rng = StdRng::seed_from_u64(seed_hash.wrapping_add(12345));
         
         self.head_char_sequence = (0..self.sequence_length)
-            .map(|_| rng.gen_range(0..usize::MAX))
+            .map(|_| rng.random_range(0..usize::MAX))
             .collect();
             
         self.trail_char_sequence = (0..self.sequence_length)
-            .map(|_| rng.gen_range(0..usize::MAX))
+            .map(|_| rng.random_range(0..usize::MAX))
             .collect();
     }
 
@@ -116,8 +116,8 @@ impl TuringMachine {
         let mut rng = StdRng::seed_from_u64(seed_hash);
 
         for i in 0..self.num_heads {
-            let x = rng.gen_range(0..self.grid_width.max(1));
-            let y = rng.gen_range(0..self.grid_height.max(1));
+            let x = rng.random_range(0..self.grid_width.max(1));
+            let y = rng.random_range(0..self.grid_height.max(1));
             let mut head = Head::new(x, y, Color::White);
             head.direction = initial_direction;
             head.color = config.display.get_head_color(i);
@@ -186,8 +186,8 @@ impl TuringMachine {
     }
 
     pub fn generate_random_seed(&self) -> String {
-        use rand::distributions::Alphanumeric;
-        let mut rng = rand::thread_rng();
+        use rand::distr::Alphanumeric;
+        let mut rng = rand::rng();
         (0..8)
             .map(|_| rng.sample(Alphanumeric) as char)
             .collect::<String>()
