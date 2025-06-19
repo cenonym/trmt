@@ -21,6 +21,7 @@ state_based_colors = false
 live_colors = false
 randomize_heads = true
 randomize_trails = true
+direction_based_chars = false
 head_char = ["ﾊ", "ﾐ", "ﾋ", "ｰ", "ｳ", "ｼ", "ﾅ", "ﾓ", "ﾆ", "ｻ"]
 trail_char = ["ｦ","ｧ","ｨ","ｩ","ｪ","ｫ","ｬ","ｭ","ｮ","ｯ","ｰ","ｱ","ｲ","ｳ","ｴ","ｵ","ｶ","ｷ","ｸ","ｹ","ｺ","ｻ","ｼ","･","･"]
 cell_char = " "
