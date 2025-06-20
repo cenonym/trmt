@@ -110,6 +110,7 @@ You can also use the `home-manager` module to install and configure `trmt`. Firs
         cell_char = "░░";
         randomize_heads = false;
         randomize_trails = false;
+        direction_based_chars = false;
       };
       controls = {
         quit = "q";
@@ -204,6 +205,7 @@ trail_char = ["▓▓"]                 # Array of trail characters, where first
 cell_char = "░░"                    # The characters left behind the trail when color_cells = true
 randomize_heads = false             # Randomize head character in head_char array
 randomize_trails = false            # Randomize trail characters in trail_char array
+direction_based_chars = false       # Map characters based on movement direction and turns
 
 [controls]
 quit = "q"                          # Quit
@@ -281,7 +283,7 @@ rule = "{{{1, 8, 1}, {1, 8, 1}}, {{1, 2, 1}, {0, 1, 0}}}"
 - [x] Gradient trails - Added in [v0.4.0](https://github.com/cenonym/trmt/releases/tag/v0.4.0)
 - [x] Clean up reset and config reload functions - Added in [v0.5.0](https://github.com/cenonym/trmt/releases/tag/v0.5.0)
 - [x] Random rule generation - Added in [v0.5.0](https://github.com/cenonym/trmt/releases/tag/v0.5.0)
-- [ ] Customizable initial head direction
+- [x] Direction based characters - Added in [v0.6.0](https://github.com/cenonym/trmt/releases/tag/v0.6.0)
 - [ ] Proper wiki/documentation
 <br>
 
