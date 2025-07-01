@@ -20,6 +20,7 @@ state_based_colors = false
 live_colors = false
 randomize_heads = false
 randomize_trails = false
+direction_based_chars = false
 head_char = ["⬤"]
 trail_char = ["●","⊛","⊛","○","○","•","•","·","·","·"]
 cell_char = "·"

@@ -8,6 +8,7 @@ use std::collections::BTreeMap;
 use rand::{Rng, SeedableRng};
 use rand::rngs::StdRng;
 use crate::config::Config;
+use crate::machine::rules::Direction;
 
 pub use rules::{StateTransition, TurnDirection};
 pub use heads::Head;
@@ -80,11 +81,11 @@ impl TuringMachine {
         let mut rng = StdRng::seed_from_u64(seed_hash.wrapping_add(12345));
         
         self.head_char_sequence = (0..self.sequence_length)
-            .map(|_| rng.gen_range(0..usize::MAX))
+            .map(|_| rng.random_range(0..usize::MAX))
             .collect();
             
         self.trail_char_sequence = (0..self.sequence_length)
-            .map(|_| rng.gen_range(0..usize::MAX))
+            .map(|_| rng.random_range(0..usize::MAX))
             .collect();
     }
 
@@ -108,28 +109,60 @@ impl TuringMachine {
         self.parse_rules(&effective_rule);
         self.rule_string = effective_rule;
         
+        // Get initial direction from rule
+        let initial_direction = self.get_initial_direction();
+        
         let seed_hash = self.hash_seed(&seed);
         let mut rng = StdRng::seed_from_u64(seed_hash);
 
         for i in 0..self.num_heads {
-            let x = rng.gen_range(0..self.grid_width.max(1));
-            let y = rng.gen_range(0..self.grid_height.max(1));
+            let x = rng.random_range(0..self.grid_width.max(1));
+            let y = rng.random_range(0..self.grid_height.max(1));
             let mut head = Head::new(x, y, Color::White);
-            head.color = config.display.get_head_color(i, config);
+            head.direction = initial_direction;
+            head.color = config.display.get_head_color(i);
             self.heads.push(head);
         }
         
         self.generate_random_sequences(config);
     }
 
-    pub fn get_head_char_index(&self, head_index: usize) -> usize {
-        let sequence_index = (self.steps.wrapping_add(head_index as u64)) as usize % self.sequence_length;
-        self.head_char_sequence[sequence_index]
+    // Calculate char based on direction
+    fn get_head_char(&self, head: &Head, new_direction: Direction, config: &Config) -> Option<String> {
+        if config.display.direction_based_chars {
+            let char_index = config.display.get_direction_char_index(new_direction, Some(head.direction));
+            let index = char_index % config.display.head_char.len();
+            Some(config.display.head_char[index].clone())
+        } else {
+            None
+        }
+    }
+
+    pub fn get_head_char_index(&self, head_index: usize, config: &Config) -> usize {
+        if config.display.randomize_heads {
+            let sequence_index = (self.steps.wrapping_add(head_index as u64)) as usize % self.sequence_length;
+            self.head_char_sequence[sequence_index] % config.display.head_char_data.len()
+        } else {
+            let head = &self.heads[head_index];
+            config.display.get_head_char_index(
+                head_index, 
+                head.direction, 
+                head.previous_direction
+            )
+        }
     }
     
     pub fn get_trail_char_index(&self, head_index: usize, trail_index: usize) -> usize {
         let sequence_index = (self.steps.wrapping_add(head_index as u64).wrapping_add(trail_index as u64 * 17)) as usize % self.sequence_length;
         self.trail_char_sequence[sequence_index]
+    }
+
+    fn get_initial_direction(&self) -> Direction {
+        if let Some(transition) = self.rules.get(&(0, 'A')) {
+            transition.turn_direction.apply(Direction::Up)
+        } else {
+            Direction::Up
+        }
     }
 
     pub fn update_colors(&mut self, config: &Config) {
@@ -138,7 +171,7 @@ impl TuringMachine {
             .collect();
         
         for (i, head) in self.heads.iter_mut().enumerate() {
-            head.color = config.display.get_head_color(i, config);
+            head.color = config.display.get_head_color(i);
         }
     }
 
@@ -153,8 +186,8 @@ impl TuringMachine {
     }
 
     pub fn generate_random_seed(&self) -> String {
-        use rand::distributions::Alphanumeric;
-        let mut rng = rand::thread_rng();
+        use rand::distr::Alphanumeric;
+        let mut rng = rand::rng();
         (0..8)
             .map(|_| rng.sample(Alphanumeric) as char)
             .collect::<String>()
@@ -210,11 +243,10 @@ impl TuringMachine {
                 let wrapped_x = ((new_x % width) + width) % width;
                 let wrapped_y = ((new_y % height) + height) % height;
                 
-                // Live head color
-                let preview_head_color = if config.display.state_based_colors && config.display.live_colors {
-                    config.display.get_cell_color(transition.new_cell_state, i, config)
+                let live_colors_color = if config.display.state_based_colors && config.display.live_colors {
+                    config.display.get_cell_color(transition.new_cell_state, i)
                 } else {
-                    config.display.get_head_color(i, config)
+                    config.display.get_head_color(i)
                 };
                 
                 self.updates_buffer.push((
@@ -224,12 +256,25 @@ impl TuringMachine {
                     transition.new_internal_state,
                     wrapped_x,
                     wrapped_y,
-                    preview_head_color,
+                    live_colors_color,
                 ));
                 
-                // Use state-based or head-based coloring
-                let cell_color = config.display.get_cell_color(transition.new_cell_state, i, config);
-                self.grid.set_cell(head.x, head.y, transition.new_cell_state, cell_color, config.display.state_based_colors);
+                let display_char = if config.simulation.color_cells ||
+                (config.display.direction_based_chars && config.simulation.trail_length > 0) {
+                    self.get_head_char(head, new_direction, config)
+                } else {
+                    None
+                };
+        
+                let cell_color = config.display.get_cell_color(transition.new_cell_state, i);
+                self.grid.set_cell(
+                    head.x, 
+                    head.y, 
+                    transition.new_cell_state, 
+                    cell_color, 
+                    display_char,
+                    config.display.state_based_colors
+                );
                 self.dirty_cells.insert((head.x, head.y));
             }
         }
@@ -237,13 +282,18 @@ impl TuringMachine {
         let updates = self.updates_buffer.clone();
         for (i, _, turn_direction, new_internal_state, x, y, live_color) in updates {
             let head = &mut self.heads[i];
-            head.direction = turn_direction.apply(head.direction);
+            let new_direction = turn_direction.apply(head.direction);
+            head.set_direction(new_direction);
             head.internal_state = new_internal_state;
             head.color = live_color;
             head.move_to(x, y, config.simulation.trail_length);
         }
         
         self.steps += 1;
+    }
+
+    pub fn tape_chars(&self) -> &FxHashMap<(i32, i32), String> {
+        &self.grid.tape_chars
     }
 
     pub fn toggle_running(&mut self) {

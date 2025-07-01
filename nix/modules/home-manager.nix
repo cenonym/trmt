@@ -39,6 +39,7 @@ in {
             cell_char = "░░";
             randomize_heads = false;
             randomize_trails = false;
+            direction_based_chars = false
           };
           controls = {
             quit = "q";

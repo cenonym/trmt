@@ -13,13 +13,14 @@ color_cells = true
 seed = "nrfv6ndc"
 
 [display]
-keycast = true
+keycast = false
 colors = ["#667eea", "#764ba2", "#f093fb", "#f5576c"]
 fade_trail_color = ""
 state_based_colors = false
 live_colors = false
 randomize_heads = false
 randomize_trails = false
+direction_based_chars = false
 head_char = ["██"]
 trail_char = ["▓▓"]
 cell_char = "░░"

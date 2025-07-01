@@ -20,8 +20,6 @@ fn render_tape_cells(f: &mut Frame, app: &App, area: Rect, width: i32, height: i
         return;
     }
 
-    let cell_char_data = &app.config.display.cell_char_data;
-
     for (&(x, y), &state) in app.machine.tape() {
         if app.config.display.should_render_cell(state) {
             let (grid_x, grid_y) = wrap_coords(x, y, width, height);
@@ -30,7 +28,14 @@ fn render_tape_cells(f: &mut Frame, app: &App, area: Rect, width: i32, height: i
             
             let color = app.machine.tape_colors().get(&(x, y)).copied().unwrap_or(Color::White);
             
-            for (i, &ch) in cell_char_data.chars.iter().enumerate() {
+            // Use stored character if available, otherwise default
+            let display_chars = if let Some(stored_char) = app.machine.tape_chars().get(&(x, y)) {
+                stored_char.chars().collect::<Vec<_>>()
+            } else {
+                app.config.display.cell_char_data.chars.clone()
+            };
+            
+            for (i, &ch) in display_chars.iter().enumerate() {
                 let char_x = buffer_x + i as u16;
                 if char_x < area.x + area.width && buffer_y < area.y + area.height {
                     f.buffer_mut()[(char_x, buffer_y)].set_char(ch).set_fg(color);
@@ -47,16 +52,29 @@ fn render_trails(f: &mut Frame, app: &App, area: Rect, width: i32, height: i32) 
             let buffer_x = area.x + (grid_x * 2) as u16;
             let buffer_y = area.y + grid_y as u16;
             
-            let char_index = if app.config.display.randomize_trails {
-                let random_index = app.machine.get_trail_char_index(head_index, trail_index);
-                random_index % app.config.display.trail_char_data.len()
-            } else if trail_index < app.config.display.trail_char_data.len() {
-                trail_index
+            let trail_char_data = if app.config.display.direction_based_chars {
+                // Use stored cell character if available
+                if let Some(stored_char) = app.machine.tape_chars().get(&(trail_x, trail_y)) {
+                    if let Some(index) = app.config.display.head_char.iter().position(|c| c == stored_char) {
+                        &app.config.display.head_char_data[index]
+                    } else {
+                        &app.config.display.trail_char_data[0]
+                    }
+                } else {
+                    &app.config.display.trail_char_data[0]
+                }
             } else {
-                app.config.display.trail_char_data.len() - 1
+                // Regular trail logic
+                let char_index = if app.config.display.randomize_trails {
+                    let random_index = app.machine.get_trail_char_index(head_index, trail_index);
+                    random_index % app.config.display.trail_char_data.len()
+                } else if trail_index < app.config.display.trail_char_data.len() {
+                    trail_index
+                } else {
+                    app.config.display.trail_char_data.len() - 1
+                };
+                &app.config.display.trail_char_data[char_index]
             };
-            
-            let trail_char_data = &app.config.display.trail_char_data[char_index];
             
             let color = if !app.config.display.fade_trail_color.is_empty() {
                 let fade_factor = trail_index as f32 / app.config.simulation.trail_length as f32;
@@ -85,17 +103,13 @@ fn render_heads(f: &mut Frame, app: &App, area: Rect, width: i32, height: i32) {
             }
         }
         
-        let char_index = if app.config.display.randomize_heads {
-            let random_index = app.machine.get_head_char_index(head_index);
-            random_index % app.config.display.head_char_data.len()
-        } else {
-            (app.machine.steps as usize) % app.config.display.head_char_data.len()
-        };
+        let char_index = app.machine.get_head_char_index(head_index, &app.config);
         
         let head_char_data = &app.config.display.head_char_data[char_index];
         render_character_at_position(f, head_char_data, buffer_x, buffer_y, area, head.color);
     }
 }
+
 
 fn render_character_at_position(f: &mut Frame, char_data: &crate::config::CharData, buffer_x: u16, buffer_y: u16, area: Rect, color: Color) {
     if char_data.is_single_char {
