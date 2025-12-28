@@ -10,7 +10,7 @@ in {
   options.programs.trmt = {
     enable = lib.mkEnableOption "trmt; 2D Turing machine (turmite) for your terminal, written in Rust";
 
-    package = lib.mkPackageOption self.packages.${pkgs.system} "trmt" {
+    package = lib.mkPackageOption self.packages.${pkgs.stdenv.hostPlatform.system} "trmt" {
       default = "default";
       pkgsText = "trmt.packages.\${system}";
     };

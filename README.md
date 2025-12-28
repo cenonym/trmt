@@ -62,14 +62,14 @@ Add `trmt` to your flake as an input,
 }
 ```
 
-Then, you can add `inputs.trmt.packages.${pkgs.systems}.default` directly into your `environment.systemPackages` or `home.packages`:
+Then, you can add `inputs.trmt.packages.${pkgs.stdenv.hostPlatform.system}.default` directly into your `environment.systemPackages` or `home.packages`:
 ```nix
 {
   outputs = { nixpkgs, trmt, ... }: {
     nixosConfigurations.<mysystem> = nixpkgs.lib.nixosSystem {
       modules = [
         ({ pkgs, ... }: {
-          environment.systemPackages = [ trmt.packages.${pkgs.system}.default ];
+          environment.systemPackages = [ trmt.packages.${pkgs.stdenv.hostPlatform.system}.default ];
         })
       ];
     };
