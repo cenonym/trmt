@@ -71,9 +71,9 @@ fn run_app(
     loop {
         let area = terminal.draw(|f| ui(f, app))?.area;
         
-        if event::poll(Duration::from_millis(16))? {
-            if let Event::Key(key) = event::read()? {
-                if let KeyCode::Char(ch) = key.code {
+        if event::poll(Duration::from_millis(16))?
+            && let Event::Key(key) = event::read()?
+                && let KeyCode::Char(ch) = key.code {
                     let ch_str = ch.to_string();
                     let mut key_pressed = false;
                     
@@ -194,8 +194,6 @@ fn run_app(
                         app.register_keypress(ch_str);
                     }
                 }
-            }
-        }
 
         app.update(area.width as i32 / 2, area.height as i32);
     }
