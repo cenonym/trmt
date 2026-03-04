@@ -13,7 +13,7 @@ categories = ["command-line-utilities", "simulation", "science", "visualization"
 exclude = ["*.gif", "/.github", "/examples", "/assets"]
 
 [dependencies]
-ratatui = "0.29"
+ratatui = "0.30"
 crossterm = "0.29"
 rand = "0.9.1"
 serde = { version = "1.0", features = ["derive"] }
