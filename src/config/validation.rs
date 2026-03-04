@@ -36,11 +36,10 @@ pub fn validate_config(config: &Config) -> Result<(), Vec<String>> {
     }
 
     // Validate fade_trail_color if not empty
-    if !config.display.fade_trail_color.is_empty() {
-        if let Err(e) = validate_color(&config.display.fade_trail_color) {
+    if !config.display.fade_trail_color.is_empty()
+        && let Err(e) = validate_color(&config.display.fade_trail_color) {
             errors.push(format!("display.fade_trail_color: {}", e));
         }
-    }
 
     // Validate numeric ranges
     if config.simulation.heads == 0 || config.simulation.heads > 256 {
@@ -297,29 +296,27 @@ fn validate_color(color_str: &str) -> Result<(), String> {
 
 pub fn parse_color(color_str: &str) -> Color {
     // Parse hex colors
-    if color_str.starts_with('#') && color_str.len() == 7 {
-        if let (Ok(r), Ok(g), Ok(b)) = (
+    if color_str.starts_with('#') && color_str.len() == 7
+        && let (Ok(r), Ok(g), Ok(b)) = (
             u8::from_str_radix(&color_str[1..3], 16),
             u8::from_str_radix(&color_str[3..5], 16),
             u8::from_str_radix(&color_str[5..7], 16),
         ) {
             return Color::Rgb(r, g, b);
         }
-    }
     
     // Parse rgb colors
     if color_str.starts_with("rgb(") && color_str.ends_with(')') {
         let inner = &color_str[4..color_str.len()-1];
         let parts: Vec<&str> = inner.split(',').map(|s| s.trim()).collect();
-        if parts.len() == 3 {
-            if let (Ok(r), Ok(g), Ok(b)) = (
+        if parts.len() == 3
+            && let (Ok(r), Ok(g), Ok(b)) = (
                 parts[0].parse::<u8>(),
                 parts[1].parse::<u8>(),
                 parts[2].parse::<u8>(),
             ) {
                 return Color::Rgb(r, g, b);
             }
-        }
     }
 
     // Parse 256-colors

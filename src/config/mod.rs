@@ -70,21 +70,19 @@ impl Config {
         let state_path = Self::state_dir().join("current_seed");
         
         // State takes precedence when it exists
-        if state_path.exists() {
-            if let Ok(seed) = std::fs::read_to_string(&state_path) {
+        if state_path.exists()
+            && let Ok(seed) = std::fs::read_to_string(&state_path) {
                 let trimmed = seed.trim();
                 if !trimmed.is_empty() {
                     return Some(trimmed.to_string());
                 }
             }
-        }
         
         // Fall back to config
-        if let Some(ref config_seed) = self.simulation.seed {
-            if !config_seed.is_empty() {
+        if let Some(ref config_seed) = self.simulation.seed
+            && !config_seed.is_empty() {
                 return Some(config_seed.clone());
             }
-        }
         
         None
     }
@@ -111,14 +109,13 @@ impl Config {
         let state_path = Self::state_dir().join("current_rule");
         
         // State takes precedence when it exists
-        if state_path.exists() {
-            if let Ok(rule) = std::fs::read_to_string(&state_path) {
+        if state_path.exists()
+            && let Ok(rule) = std::fs::read_to_string(&state_path) {
                 let trimmed = rule.trim();
                 if !trimmed.is_empty() {
                     return trimmed.to_string();
                 }
             }
-        }
         
         // Fall back to config
         if !self.simulation.rule.is_empty() {
