@@ -279,6 +279,7 @@ pub fn render_help_overlay(f: &mut Frame, app: &App) {
         Line::from(""),
         Line::from(format!("{}: Quit", app.config.controls.quit)),
         Line::from(format!("{}: Toggle simulation", app.config.controls.toggle)),
+        Line::from(format!("{}: Step (when paused)", app.config.controls.step)),
         Line::from(format!("{}: Reset simulation", app.config.controls.reset)),
         Line::from(format!("{}: Increase speed", app.config.controls.faster)),
         Line::from(format!("{}: Decrease speed", app.config.controls.slower)),

@@ -73,6 +73,7 @@ pub fn validate_config(config: &Config) -> Result<(), Vec<String>> {
         ("statusbar", &config.controls.statusbar),
         ("randomize_seed", &config.controls.randomize_seed),
         ("randomize_rule", &config.controls.randomize_rule),
+        ("step", &config.controls.step),
     ];
 
     for (name, key) in &controls {
