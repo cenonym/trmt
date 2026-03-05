@@ -115,6 +115,7 @@ You can also use the `home-manager` module to install and configure `trmt`. Firs
       controls = {
         quit = "q";
         toggle = " ";
+        step = ".";
         reset = "r";
         faster = "+";
         slower = "-";
@@ -157,6 +158,7 @@ https://github.com/user-attachments/assets/eefc272b-09b2-4c9c-93dc-984c1ae60ed0
 | Key | Action |
 |:----|:-------|
 | `Space` | Pause/resume simulation |
+| `.` | Step one tick (when paused) |
 | `q` | Quit |
 | `r` | Reset simulation with current parameters |
 | `h` | Toggle help overlay |
@@ -210,6 +212,7 @@ direction_based_chars = false       # Map characters based on movement direction
 [controls]
 quit = "q"                          # Quit
 toggle = " "                        # Pause/resume simulation
+step = "."                          # Step one tick (when paused)
 reset = "r"                         # Reset simulation
 faster = "+"                        # Increase simulation speed
 slower = "-"                        # Decrease simulation speed
