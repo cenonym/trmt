@@ -21,6 +21,8 @@ use config::{Config, ConfigLoadResult};
 use render::{App, ui};
 
 fn main() -> Result<(), Box<dyn Error>> {
+    let (cli_rule, cli_seed) = parse_cli_args();
+
     let (config, error_message) = match Config::load() {
         ConfigLoadResult::Success(config) => (config, None),
         ConfigLoadResult::ValidationErrors(config, errors) => {
@@ -34,6 +36,8 @@ fn main() -> Result<(), Box<dyn Error>> {
         },
     };
     
+    Config::apply_cli_overrides(cli_rule.as_deref(), cli_seed.as_deref());
+
     enable_raw_mode()?;
     let mut stdout = io::stdout();
     execute!(stdout, EnterAlternateScreen, EnableMouseCapture)?;
@@ -62,6 +66,37 @@ fn main() -> Result<(), Box<dyn Error>> {
     }
 
     Ok(())
+}
+
+fn parse_cli_args() -> (Option<String>, Option<String>) {
+    let mut rule = None;
+    let mut seed = None;
+    let mut args = std::env::args().skip(1);
+
+    while let Some(arg) = args.next() {
+        match arg.as_str() {
+            "--rule" | "-r" => {
+                rule = Some(args.next().unwrap_or_else(|| {
+                    eprintln!("error: --rule requires a value");
+                    std::process::exit(1);
+                }));
+            }
+            "--seed" | "-s" => {
+                seed = Some(args.next().unwrap_or_else(|| {
+                    eprintln!("error: --seed requires a value");
+                    std::process::exit(1);
+                }));
+            }
+            other => {
+                eprintln!("error: unknown argument '{other}'");
+                eprintln!("usage: trmt [-r|--rule <RULE>] [-s|--seed <SEED>]");
+                eprintln!("note:  quote rules with special characters: --rule 'R1>1,L0>2'");
+                std::process::exit(1);
+            }
+        }
+    }
+
+    (rule, seed)
 }
 
 fn run_app(

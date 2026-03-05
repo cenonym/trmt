@@ -144,6 +144,15 @@ impl Config {
         Ok(())
     }
 
+    pub fn apply_cli_overrides(rule: Option<&str>, seed: Option<&str>) {
+        if let Some(rule) = rule {
+            let _ = Self::save_current_rule(rule);
+        }
+        if let Some(seed) = seed {
+            let _ = Self::save_current_seed(seed);
+        }
+    }
+
     pub fn validate(&self) -> Result<(), Vec<String>> {
         validation::validate_config(self)
     }
