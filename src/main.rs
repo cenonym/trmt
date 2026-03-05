@@ -75,6 +75,24 @@ fn parse_cli_args() -> (Option<String>, Option<String>) {
 
     while let Some(arg) = args.next() {
         match arg.as_str() {
+            "--help" | "-h" => {
+                println!("trmt {}", env!("CARGO_PKG_VERSION"));
+                println!();
+                println!("usage: trmt [options]");
+                println!();
+                println!("options:");
+                println!("  -r, --rule <RULE>  Override the simulation rule");
+                println!("  -s, --seed <SEED>  Override the simulation seed");
+                println!("  -h, --help         Show this help message");
+                println!("  -v, --version      Show version");
+                println!();
+                println!("note: quote rules with special characters: --rule 'R1>1,L0>2'");
+                std::process::exit(0);
+            }
+            "--version" | "-v" => {
+                println!("trmt {}", env!("CARGO_PKG_VERSION"));
+                std::process::exit(0);
+            }
             "--rule" | "-r" => {
                 rule = Some(args.next().unwrap_or_else(|| {
                     eprintln!("error: --rule requires a value");
