@@ -304,12 +304,11 @@ A big thanks to:
 You are very welcome to contribute to the project, be that through feature requests, improvements to the code or by adding functions. Please follow these steps:
 
 1. Fork the repository
-2. Create a feature branch (`git checkout -b feature/trmt-feature`)
+2. Create a branch with a conventional prefix (`feat/`, `fix/`, `refactor/`, etc.)
 3. Make your changes
-4. Run tests: `cargo test`
-5. Check for issues: `cargo clippy` (Warnings can be fine, just no errors)
-6. Commit your changes (`git commit -m 'Add trmt feature'`)
-7. Push to your branch (`git push origin feature/trmt-feature`)
-8. Open a Pull Request
+4. Build: `cargo build`
+5. Check for issues: `cargo clippy`
+6. Commit your changes, preferably following [conventional commits](https://www.conventionalcommits.org/)
+7. Push to your branch and open a Pull Request
 
 **Found a bug?** Open an [issue](https://github.com/cenonym/trmt/issues) with details and steps to reproduce. **Questions or suggestions?** Let's [discuss](https://github.com/cenonym/trmt/discussions) them.
