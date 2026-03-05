@@ -227,10 +227,6 @@ impl TuringMachine {
     }
 
     pub fn step(&mut self, width: i32, height: i32, config: &Config) {
-        if !self.running {
-            return;
-        }
-
         self.updates_buffer.clear();
         self.updates_buffer.reserve(self.heads.len());
 
