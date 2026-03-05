@@ -24,6 +24,8 @@ pub struct ControlsConfig {
     pub randomize_rule: String,
     #[serde(default = "randomize_key")]
     pub randomize: String,
+    #[serde(default = "step_key")]
+    pub step: String,
 }
 
 // Default functions
@@ -38,6 +40,7 @@ fn statusbar_key() -> String { "b".to_string() }
 fn seed_key() -> String { "s".to_string() }
 fn rule_key() -> String { "n".to_string() }
 fn randomize_key() -> String { "R".to_string() }
+fn step_key() -> String { ".".to_string() }
 
 impl Default for ControlsConfig {
     fn default() -> Self {
@@ -53,6 +56,7 @@ impl Default for ControlsConfig {
             randomize_seed: seed_key(),
             randomize_rule: rule_key(),
             randomize: randomize_key(),
+            step: step_key(),
         }
     }
 }

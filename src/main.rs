@@ -175,6 +175,11 @@ fn run_app(
                                 (Err(e), _) | (_, Err(e)) => app.show_error(format!("Failed to save random parameters: {}", e)),
                             }
                         },
+                        s if s == app.config.controls.step && !app.machine.running => {
+                            key_pressed = true;
+                            app.machine.step(area.width as i32 / 2, area.height as i32, &app.config);
+                            app.machine.mark_trail_dirty();
+                        },
                         "1" => { key_pressed = true; app.machine.set_head_count(1, &app.config); },
                         "2" => { key_pressed = true; app.machine.set_head_count(2, &app.config); },
                         "3" => { key_pressed = true; app.machine.set_head_count(4, &app.config); },
