@@ -146,6 +146,14 @@ Simply run `trmt` in your terminal to start a simulation.
 trmt
 ```
 
+You can also pass a rule and/or seed directly:
+```bash
+trmt --rule RL --seed abc123
+trmt -r 'R1>1,L0>2' -s myseed
+```
+> [!NOTE]
+> Quote rules containing special characters (`>`, `,`, `{`, `}`, etc.) to prevent shell interpretation.
+
 #### Examples
 Check out the [examples](/examples) to see some of the possibilities.
 
