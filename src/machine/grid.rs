@@ -9,6 +9,8 @@ pub struct Grid {
 }
 
 impl Grid {
+    pub const EMPTY: char = 'A';
+
     pub fn new() -> Self {
         Self {
             tape: FxHashMap::with_capacity_and_hasher(8192, Default::default()),
@@ -19,11 +21,11 @@ impl Grid {
 
     #[inline(always)]
     pub fn get_cell(&self, x: i32, y: i32) -> char {
-        self.tape.get(&(x, y)).copied().unwrap_or('A')
+        self.tape.get(&(x, y)).copied().unwrap_or(Self::EMPTY)
     }
 
     pub fn set_cell(&mut self, x: i32, y: i32, state: char, color: Color, display_char: Option<String>, state_based_colors: bool) {
-        if state == 'A' && !state_based_colors {
+        if state == Self::EMPTY && !state_based_colors {
             self.tape.remove(&(x, y));
             self.tape_colors.remove(&(x, y));
             self.tape_chars.remove(&(x, y));
