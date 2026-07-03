@@ -5,6 +5,7 @@
 ```toml
 [simulation]
 autoplay = true
+mode = "halt"
 heads = 4
 rule = "R1>1,L0>1:U1>0,D0>1"
 speed_ms = 5.0
