@@ -92,6 +92,7 @@ You can also use the `home-manager` module to install and configure `trmt`. Firs
     config = {
       simulation = {
         autoplay = true;
+        mode = "halt";
         heads = 3;
         rule = "RL";
         speed_ms = 20;
@@ -193,6 +194,7 @@ https://github.com/user-attachments/assets/eefc272b-09b2-4c9c-93dc-984c1ae60ed0
 ```toml
 [simulation]
 autoplay = true                     # If true, simulation starts running automatically on launch, reset and config reload
+mode = "halt"                       # What happens when a run stalls or repeats exactly. "halt" = pause, "loop" = restart
 heads = 3                           # Number of heads on initialization
 rule = "RL"                         # Rules for the simulation
 speed_ms = 20                       # Simulation speed in milliseconds

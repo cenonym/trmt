@@ -21,6 +21,7 @@ in {
         {
           simulation = {
             autoplay = true;
+            mode = "halt";
             heads = 3;
             rule = "RL";
             speed_ms = 20;
