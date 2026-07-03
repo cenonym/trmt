@@ -7,7 +7,7 @@ use ratatui::style::Color;
 use serde::{Deserialize, Serialize};
 use std::{error::Error, fs, path::PathBuf};
 
-pub use simulation::SimulationConfig;
+pub use simulation::{SimulationConfig, SimMode};
 pub use display::{DisplayConfig, CharData};
 pub use controls::ControlsConfig;
 

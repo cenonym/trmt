@@ -3,7 +3,7 @@ pub mod effects;
 pub mod ui;
 
 use ratatui::Frame;
-use crate::{machine::TuringMachine, config::Config};
+use crate::{machine::TuringMachine, config::{Config, SimMode}};
 use std::time::Duration;
 
 pub struct App {
@@ -80,10 +80,27 @@ impl App {
             
             for _ in 0..steps_per_frame.min(100) {
                 self.machine.step(width, height, &self.config);
+                if self.machine.detection_pending() {
+                    break;
+                }
             }
             
             self.machine.mark_trail_dirty();
             self.last_step = std::time::Instant::now();
+        }
+
+        if self.machine.running {
+            self.apply_mode_reaction();
+        }
+    }
+
+    fn apply_mode_reaction(&mut self) {
+        if !self.machine.detection_pending() {
+            return;
+        }
+        match self.config.simulation.mode {
+            SimMode::Loop => self.machine.restart_replay(&self.config),
+            SimMode::Halt => self.machine.auto_halt(),
         }
     }
 }
@@ -105,4 +122,51 @@ pub fn ui(f: &mut Frame, app: &mut App) {
     }
     
     app.machine.clear_dirty_cells();
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::machine::DetectionStatus;
+
+    #[test]
+    fn no_reaction_while_detector_running() {
+        let mut config = Config::default();
+        config.simulation.mode = SimMode::Loop;
+        let mut app = App::new(config);
+        app.machine.running = true;
+        app.apply_mode_reaction();
+        assert!(app.machine.running);
+        assert!(!app.machine.auto_halted);
+    }
+
+    // has_looped pre-set keeps the test out of ~/.local/state
+    #[test]
+    fn proven_loop_restart_keeps_running_despite_autoplay_off() {
+        let mut config = Config::default();
+        config.simulation.mode = SimMode::Loop;
+        config.simulation.autoplay = false;
+        let mut app = App::new(config);
+        app.machine.running = true;
+        app.machine.has_looped = true;
+        app.machine.detector.mark_stalled(10);
+        app.apply_mode_reaction();
+        assert_eq!(app.machine.steps, 0, "restart must reset the run");
+        assert!(app.machine.running, "machine-initiated restarts keep running");
+        assert!(app.machine.has_looped);
+        assert_eq!(app.machine.detector.status(), DetectionStatus::Running);
+    }
+
+    #[test]
+    fn halt_mode_stops_the_machine_on_detection() {
+        let mut config = Config::default();
+        config.simulation.mode = SimMode::Halt;
+        let mut app = App::new(config);
+        app.machine.running = true;
+        app.machine.detector.mark_stalled(10);
+        app.apply_mode_reaction();
+        assert!(!app.machine.running);
+        assert!(app.machine.auto_halted);
+        assert_eq!(app.machine.detector.status(), DetectionStatus::Stalled { at_step: 10 });
+    }
 }

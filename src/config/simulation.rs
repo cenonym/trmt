@@ -2,6 +2,14 @@ use serde::{Deserialize, Serialize};
 use rand::Rng;
 use std::collections::{HashSet};
 
+// What to do when detection proves a run is done
+#[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "lowercase")]
+pub enum SimMode {
+    Halt,
+    Loop,
+}
+
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct SimulationConfig {
     #[serde(default = "autoplay")]
@@ -18,6 +26,8 @@ pub struct SimulationConfig {
     pub color_cells: bool,
     #[serde(default = "seed")]
     pub seed: Option<String>,
+    #[serde(default = "mode")]
+    pub mode: SimMode,
 }
 
 // Default functions
@@ -28,6 +38,7 @@ fn speed() -> f64 { 5.0 }
 fn trail_length() -> usize { 16 }
 fn color_cells() -> bool { true }
 fn seed() -> Option<String> { Some(String::new()) }
+fn mode() -> SimMode { SimMode::Halt }
 
 impl Default for SimulationConfig {
     fn default() -> Self {
@@ -39,6 +50,7 @@ impl Default for SimulationConfig {
             trail_length: trail_length(),
             color_cells: color_cells(),
             seed: seed(),
+            mode: mode(),
         }
     }
 }
@@ -166,7 +178,7 @@ impl SimulationConfig {
         
         transitions.join(",")
     }
-    
+
     // Score rules based on potential for interesting behavior
     fn score_rule_potential(rule: &str) -> i32 {
         let mut score = 0;
@@ -193,5 +205,23 @@ impl SimulationConfig {
         score += unique_dirs.len() as i32 * 3;
         
         score
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn mode_parses_from_toml_and_defaults_to_halt() {
+        let parsed: SimulationConfig = toml::from_str("mode = \"loop\"").unwrap();
+        assert_eq!(parsed.mode, SimMode::Loop);
+        let empty: SimulationConfig = toml::from_str("").unwrap();
+        assert_eq!(empty.mode, SimMode::Halt);
+        assert_eq!(SimulationConfig::default().mode, SimMode::Halt);
+        assert!(toml::from_str::<SimulationConfig>("mode = \"disco\"").is_err());
+        // create_example_config serializes this, so the TOML name has to round-trip
+        let serialized = toml::to_string(&SimulationConfig::default()).unwrap();
+        assert!(serialized.contains("mode = \"halt\""), "{serialized}");
     }
 }
