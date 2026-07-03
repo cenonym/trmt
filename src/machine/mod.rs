@@ -1,6 +1,7 @@
 pub mod rules;
 pub mod grid;
 pub mod heads;
+pub mod detection;
 
 use ratatui::style::Color;
 use rustc_hash::{FxHashMap, FxHashSet};
@@ -13,6 +14,7 @@ use crate::machine::rules::Direction;
 pub use rules::{StateTransition, TurnDirection};
 pub use heads::Head;
 pub use grid::Grid;
+pub use detection::{CycleDetector, DetectionStatus};
 
 #[derive(Debug)]
 pub struct TuringMachine {
@@ -33,12 +35,15 @@ pub struct TuringMachine {
     head_char_sequence: Vec<usize>,
     trail_char_sequence: Vec<usize>,
     sequence_length: usize,
+    pub detector: CycleDetector,
+    pub has_looped: bool,
+    pub auto_halted: bool,
 }
 
 impl TuringMachine {
     pub fn new(num_heads: usize, rule_string: &str, config: &Config) -> Self {
         let sequence_length = 10000;
-        
+
         let mut machine = Self {
             grid: Grid::new(),
             heads: Vec::with_capacity(num_heads.min(256)),
@@ -57,6 +62,9 @@ impl TuringMachine {
             head_char_sequence: Vec::with_capacity(sequence_length),
             trail_char_sequence: Vec::with_capacity(sequence_length),
             sequence_length,
+            detector: CycleDetector::new(),
+            has_looped: false,
+            auto_halted: false,
         };
 
         machine.update_colors(config);
@@ -125,6 +133,13 @@ impl TuringMachine {
         }
         
         self.generate_random_sequences(config);
+        self.reset_detection();
+    }
+
+    fn reset_detection(&mut self) {
+        self.detector.reset_with(&self.grid, &self.heads);
+        self.has_looped = false;
+        self.auto_halted = false;
     }
 
     // Calculate char based on direction
@@ -264,28 +279,35 @@ impl TuringMachine {
         
                 let cell_color = config.display.get_cell_color(transition.new_cell_state, i);
                 self.grid.set_cell(
-                    head.x, 
-                    head.y, 
-                    transition.new_cell_state, 
-                    cell_color, 
+                    head.x,
+                    head.y,
+                    transition.new_cell_state,
+                    cell_color,
                     display_char,
                     config.display.state_based_colors
                 );
+                self.detector.cell_delta(head.x, head.y, current_cell, transition.new_cell_state);
                 self.dirty_cells.insert((head.x, head.y));
             }
         }
 
-        let updates = self.updates_buffer.clone();
-        for (i, _, turn_direction, new_internal_state, x, y, live_color) in updates {
+        for &(i, _, turn_direction, new_internal_state, x, y, live_color) in &self.updates_buffer {
             let head = &mut self.heads[i];
+            let old = (head.x, head.y, head.direction, head.internal_state);
             let new_direction = turn_direction.apply(head.direction);
             head.set_direction(new_direction);
             head.internal_state = new_internal_state;
             head.color = live_color;
             head.move_to(x, y, config.simulation.trail_length);
+            self.detector.head_delta(i, old, (x, y, new_direction, new_internal_state));
         }
-        
+
         self.steps += 1;
+        if self.updates_buffer.is_empty() && !self.heads.is_empty() {
+            self.detector.mark_stalled(self.steps);
+        } else {
+            self.detector.on_step_end(&self.grid, &self.heads, self.steps);
+        }
     }
 
     pub fn tape_chars(&self) -> &FxHashMap<(i32, i32), String> {
@@ -296,16 +318,15 @@ impl TuringMachine {
         self.running = !self.running;
     }
 
-    // Save runtime state and reset
-    pub fn reset(&mut self, config: &Config) {
+    fn save_state(&self) {
         let _ = Config::save_current_seed(&self.current_seed);
         let _ = Config::save_current_rule(&self.rule_string);
-        
-        self.running = config.simulation.autoplay;
-        self.steps = 0;
-        self.grid.clear();
-        self.dirty_cells.clear();
-        self.spawn_heads(config);
+    }
+
+    // Save runtime state and reset
+    pub fn reset(&mut self, config: &Config) {
+        self.save_state();
+        self.reset_clean(config);
     }
 
     pub fn reset_clean(&mut self, config: &Config) {
@@ -314,6 +335,25 @@ impl TuringMachine {
         self.grid.clear();
         self.dirty_cells.clear();
         self.spawn_heads(config);
+    }
+
+    // Replay the current run, saving state on the first restart only
+    pub fn restart_replay(&mut self, config: &Config) {
+        if !self.has_looped {
+            self.save_state();
+        }
+        self.reset_clean(config);
+        self.has_looped = true;
+        self.running = true;
+    }
+
+    pub fn auto_halt(&mut self) {
+        self.running = false;
+        self.auto_halted = true;
+    }
+
+    pub fn detection_pending(&self) -> bool {
+        self.detector.status() != DetectionStatus::Running && !self.auto_halted
     }
 
     pub fn set_head_count(&mut self, count: usize, config: &Config) {
@@ -326,6 +366,7 @@ impl TuringMachine {
             // Clear existing cells when dimensions change
             self.grid.clear();
             self.dirty_cells.clear();
+            self.reset_detection();
         }
         self.grid_width = width;
         self.grid_height = height;
@@ -337,5 +378,75 @@ impl TuringMachine {
 
     pub fn tape_colors(&self) -> &FxHashMap<(i32, i32), Color> {
         &self.grid.tape_colors
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::machine::rules::TurnDirection;
+
+    // 1-head machine with hand-authored rules, no seed or state files
+    fn test_machine(transitions: &[((usize, char), StateTransition)]) -> (TuringMachine, Config) {
+        let config = Config::default();
+        let mut m = TuringMachine::new(1, "RL", &config);
+        m.rules = transitions.iter().cloned().collect();
+        m.heads.truncate(1);
+        m.heads[0].x = 4;
+        m.heads[0].y = 4;
+        m.heads[0].direction = Direction::Up;
+        m.heads[0].internal_state = 0;
+        m.grid.clear();
+        m.steps = 0;
+        m.detector.reset_with(&m.grid, &m.heads);
+        (m, config)
+    }
+
+    #[test]
+    fn walling_in_head_stalls() {
+        // Paints a 2x2 box then hits its own 'B' with no rule and freezes
+        let (mut m, config) = test_machine(&[(
+            (0, 'A'),
+            StateTransition { new_cell_state: 'B', turn_direction: TurnDirection::Right, new_internal_state: 0 },
+        )]);
+        for _ in 0..100 {
+            m.step(8, 8, &config);
+        }
+        assert!(matches!(m.detector.status(), DetectionStatus::Stalled { .. }));
+    }
+
+    #[test]
+    fn orbiting_head_cycles_with_period_4() {
+        // Writes nothing and turns right forever, a pure 4-step orbit
+        let (mut m, config) = test_machine(&[(
+            (0, 'A'),
+            StateTransition { new_cell_state: 'A', turn_direction: TurnDirection::Right, new_internal_state: 0 },
+        )]);
+        for _ in 0..100 {
+            m.step(8, 8, &config);
+            if m.detector.status() != DetectionStatus::Running {
+                break;
+            }
+        }
+        match m.detector.status() {
+            DetectionStatus::Cycle { period, .. } => assert_eq!(period, 4),
+            other => panic!("expected cycle, got {:?}", other),
+        }
+    }
+
+    #[test]
+    fn reset_returns_detector_to_running() {
+        let (mut m, config) = test_machine(&[(
+            (0, 'A'),
+            StateTransition { new_cell_state: 'B', turn_direction: TurnDirection::Right, new_internal_state: 0 },
+        )]);
+        for _ in 0..100 {
+            m.step(8, 8, &config);
+        }
+        assert!(matches!(m.detector.status(), DetectionStatus::Stalled { .. }));
+        m.has_looped = true;
+        m.reset_clean(&config);
+        assert_eq!(m.detector.status(), DetectionStatus::Running);
+        assert!(!m.has_looped, "new run must clear the proven-loop flag");
     }
 }
