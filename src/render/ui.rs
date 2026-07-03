@@ -302,6 +302,17 @@ pub fn render_help_overlay(f: &mut Frame, app: &App) {
     render_popup(f, help_text, PopupConfig::help());
 }
 
+// Halted means the machine stopped itself, even if paused again after a resume
+fn status_label(running: bool, proven_looping: bool, auto_halted: bool) -> &'static str {
+    if !running {
+        if auto_halted { "Halted" } else { "Paused" }
+    } else if proven_looping {
+        "Looping"
+    } else {
+        "Running"
+    }
+}
+
 pub fn render_statusbar_overlay(f: &mut Frame, app: &App) {
     let speed_ms = if app.step_interval >= std::time::Duration::from_millis(1) {
         app.step_interval.as_millis() as f64
@@ -315,7 +326,11 @@ pub fn render_statusbar_overlay(f: &mut Frame, app: &App) {
         format!("{}ms", speed_ms)
     };
     
-    let running_text = if app.machine.running { "Running" } else { "Paused" };
+    let running_text = status_label(
+        app.machine.running,
+        app.machine.has_looped,
+        app.machine.auto_halted,
+    );
     
     let status_text = format!(
         "{} | Heads: {} | Steps: {} | Speed: {} | Rule: {} | Seed: {}",
@@ -335,5 +350,20 @@ pub fn render_keycast_overlay(f: &mut Frame, app: &App) {
     if let Some(ref keypress) = app.last_keypress {
         let content = vec![Line::from(keypress.clone())];
         render_popup(f, content, PopupConfig::keycast());
+    }
+}
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn status_label_table() {
+        assert_eq!(status_label(true, true, false), "Looping");
+        assert_eq!(status_label(true, false, false), "Running");
+        assert_eq!(status_label(true, false, true), "Running"); // resumed past a halt
+        assert_eq!(status_label(false, false, false), "Paused"); // manual pause
+        assert_eq!(status_label(false, true, false), "Paused"); // manual pause beats Looping
+        assert_eq!(status_label(false, true, true), "Halted");
+        assert_eq!(status_label(false, false, true), "Halted");
     }
 }
