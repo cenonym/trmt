@@ -6,6 +6,7 @@ Inspired by [cmatrix](https://github.com/abishekvashok/cmatrix) and [unimatrix](
 ```toml
 [simulation]
 autoplay = true
+mode = "halt"
 heads = 128
 rule = "S"
 speed_ms = 100.0
