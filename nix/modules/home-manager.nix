@@ -39,11 +39,12 @@ in {
             cell_char = "░░";
             randomize_heads = false;
             randomize_trails = false;
-            direction_based_chars = false
+            direction_based_chars = false;
           };
           controls = {
             quit = "q";
             toggle = " ";
+            step = ".";
             reset = "r";
             faster = "+";
             slower = "-";
